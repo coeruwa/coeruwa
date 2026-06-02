@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schola ストアゲーム</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const INIT_ACCOUNTS = [
+  { id:'a1', loginId:'admin',     pass:'admin123', role:'admin',   name:'管理者',    school:'Schola運営' },
+  { id:'t1', loginId:'teacher01', pass:'pass123',  role:'teacher', name:'田中先生',  school:'○○高等学校', class:'2年B組' },
+  { id:'t2', loginId:'teacher02', pass:'pass123',  role:'teacher', name:'鈴木先生',  school:'○○高等学校', class:'3年A組' },
+  { id:'s1', loginId:'student01', pass:'pass123',  role:'student', name:'山田 太郎', school:'○○高等学校', class:'2年B組', teacherId:'t1' },
+  { id:'s2', loginId:'student02', pass:'pass123',  role:'student', name:'佐藤 花子', school:'○○高等学校', class:'2年B組', teacherId:'t1' },
+  { id:'s3', loginId:'student03', pass:'pass123',  role:'student', name:'鈴木 一郎', school:'○○高等学校', class:'2年B組', teacherId:'t1' },
+  { id:'s4', loginId:'student04', pass:'pass123',  role:'student', name:'高橋 美咲', school:'○○高等学校', class:'3年A組', teacherId:'t2' },
+];
+
+const CARDS = [
+  {id:1,name:"社員の採用",cat:'D',diff:'D',target:[],cost:300,ret:0,recur:true,desc:"【守り】基盤強化。R3コンボボーナス必須。",icon:"👔"},
+  {id:2,name:"社員食堂を作る",cat:'D',diff:'D',target:[],cost:300,ret:0,recur:true,desc:"【守り】福利厚生。R7コンボボーナス必須。",icon:"🍚"},
+  {id:3,name:"組織・人事制度の見直し",cat:'D',diff:'D',target:[],cost:300,ret:0,recur:true,desc:"【守り】組織改革。R6アクシデント回避に必須。",icon:"📋"},
+  {id:4,name:"社員向け研修の実施",cat:'D',diff:'D',target:[],cost:300,ret:0,recur:true,desc:"【守り】人材育成。出目に関わらず効果継続。",icon:"📚"},
+  {id:5,name:"給与アップの実施",cat:'D',diff:'D',target:[],cost:300,ret:0,recur:true,desc:"【守り】待遇改善。R4離職アクシデント回避可能。",icon:"💰"},
+  {id:6,name:"ロゴのリニューアル",cat:'D',diff:'D',target:[],cost:300,ret:0,recur:true,desc:"【守り】ブランド刷新。R5コンボボーナス必須。",icon:"🎨"},
+  {id:7,name:"社会貢献活動を推進",cat:'D',diff:'D',target:[],cost:300,ret:0,recur:true,desc:"【守り】CSR活動。出目に関わらず効果継続。",icon:"🤝"},
+  {id:8,name:"銀行事業を開始",cat:'M',diff:'S',target:[6],cost:1500,ret:2000,recur:true,desc:"【難易度S】出目6で成功。高リターン継続。",icon:"🏦"},
+  {id:9,name:"セルフレジの導入",cat:'M',diff:'C',target:[1,2,3,4],cost:1000,ret:800,recur:true,desc:"【難易度C】出目1-4で成功。安定運用。",icon:"🤖"},
+  {id:10,name:"SNS広告の運用",cat:'M',diff:'C',target:[1,2,3,4],cost:300,ret:300,recur:true,desc:"【難易度C】出目1-4で成功。低コスト広告。",icon:"📱"},
+  {id:11,name:"ポイントカードの導入",cat:'M',diff:'B',target:[1,3,5],cost:800,ret:800,recur:true,desc:"【難易度B】出目1,3,5で成功。R8コンボ必須。",icon:"💳"},
+  {id:12,name:"オリジナルスイーツ開発",cat:'M',diff:'A',target:[2,4],cost:300,ret:1000,recur:false,desc:"【難易度A】出目2,4で成功。ヒット商品(単発)。",icon:"🍰"},
+  {id:13,name:"ブランドコラボ店",cat:'M',diff:'S',target:[2],cost:1000,ret:3000,recur:false,desc:"【難易度S】出目2で成功。話題性抜群(単発)。",icon:"👗"},
+  {id:14,name:"輸送システムの改良",cat:'M',diff:'C',target:[1,3,4,5],cost:300,ret:300,recur:true,desc:"【難易度C】出目1,3,4,5で成功。物流改善。",icon:"🚚"},
+  {id:15,name:"企業を買収(M&A)",cat:'M',diff:'A',target:[4,5],cost:2000,ret:2000,recur:true,desc:"【難易度A】出目4,5で成功。事業拡大。",icon:"🏢"},
+  {id:16,name:"生産工場を増やす",cat:'M',diff:'A',target:[1,3],cost:1000,ret:1000,recur:true,desc:"【難易度A】出目1,3で成功。製造強化。",icon:"🏭"},
+  {id:17,name:"店舗のリニューアル",cat:'F',diff:'C',target:[2,3,5,6],cost:100,ret:300,recur:false,desc:"【難易度C】出目2,3,5,6で成功。改装効果(単発)。",icon:"✨"},
+  {id:18,name:"店内調理場の拡充",cat:'F',diff:'A',target:[3,6],cost:1000,ret:1000,recur:true,desc:"【難易度A】出目3,6で成功。出来立て提供。",icon:"🍳"},
+  {id:19,name:"海外出店スタート",cat:'F',diff:'S',target:[1],cost:1500,ret:2000,recur:true,desc:"【難易度S】出目1で成功。グローバル展開。",icon:"🌏"},
+  {id:20,name:"ネット販売とデリバリー",cat:'F',diff:'A',target:[4,5],cost:1000,ret:1000,recur:true,desc:"【難易度A】出目4,5で成功。販路拡大。",icon:"🛵"},
+  {id:21,name:"直営店舗を増やす",cat:'F',diff:'A',target:[1,6],cost:1000,ret:1000,recur:true,desc:"【難易度A】出目1,6で成功。多店舗展開。",icon:"🏪"},
+  {id:22,name:"店舗イベントの開催",cat:'F',diff:'B',target:[2,4,6],cost:500,ret:1300,recur:false,desc:"【難易度B】出目2,4,6で成功。偶数狙い(単発)。",icon:"🎉"},
+  {id:23,name:"店舗間の連携体制",cat:'F',diff:'C',target:[1,3,5,6],cost:100,ret:200,recur:true,desc:"【難易度C】出目1,3,5,6で成功。協力体制。",icon:"🔗"},
+  {id:24,name:"店舗オーナーの教育",cat:'F',diff:'C',target:[2,4,5,6],cost:300,ret:300,recur:true,desc:"【難易度C】出目2,4,5,6で成功。人材育成。",icon:"🎓"},
+];
+
+const STD_EVENTS=[null,null,{title:"競合店がオープン",desc:"近くに競合店が出現。差別化戦略が急務！",val:-300,pos:false},{title:"社員コンボ発動！",desc:"採用＆研修の成果でチームワーク向上！",val:800,pos:true,req:[1,4]},{title:"大規模離職の危機",desc:"待遇不満で社員が次々と辞表を…",val:-600,pos:false,avoid:[5]},{title:"リブランディング効果",desc:"ロゴ刷新でSNSバズり！来店数が急増。",val:700,pos:true,req:[6]},{title:"食品偽装スキャンダル",desc:"業界全体が揺れる不祥事発覚。",val:-800,pos:false,avoid:[3]},{title:"福利厚生特集に掲載",desc:"社員食堂が雑誌特集に！採用応募が殺到。",val:600,pos:true,req:[2]},{title:"ポイント経済圏拡大",desc:"ポイントカードのユーザーが急増し収益が倍増！",val:1200,pos:true,req:[11]}];
+const RND_EVENTS=[{title:"SNSバズり！",desc:"商品動画が突然バズり、売上急増。",val:1000,pos:true},{title:"自然災害発生",desc:"店舗周辺で浸水被害。修繕費がかさむ。",val:-700,pos:false},{title:"有名人が来店",desc:"インフルエンサーが来店し話題に！",val:800,pos:true},{title:"原材料費高騰",desc:"物価上昇で仕入れコストが激増。",val:-500,pos:false},{title:"地域イベント誘致",desc:"近くで大型イベント開催。来客数が倍増！",val:900,pos:true},{title:"システム障害",desc:"POSシステムがダウンし長時間の営業停止。",val:-400,pos:false}];
+const ADVICE=["攻め一辺倒では足元をすくわれるぞ。守りの意識も時には必要じゃ。","カード同士の相性を考えてみるのじゃ。コンボを狙え！","特定の数字に頼りすぎてはおらんか？リスクを分散させるのも賢い経営じゃぞ。","従業員を大切にしているか？待遇改善は未来の危機を救う投資になるのじゃ。","前半は耐えて資金を貯め、後半に大きな投資をする長期視点も重要じゃ。"];
+const RANK_B={standard:{S:35000,A:20000,B:10000,C:0},random:{S:50000,A:30000,B:10000,C:0}};
+const INIT_FUNDS=3000,TOTAL_R=8,MIN_C=3,MAX_C=8;
+
+function checkEvent(round,cards,mode){
+  if(mode==='random'){if(Math.random()<0.6)return RND_EVENTS[Math.floor(Math.random()*RND_EVENTS.length)];return null;}
+  const ev=STD_EVENTS[round];if(!ev)return null;const ids=cards.map(c=>c.id);
+  if(ev.avoid&&ev.avoid.some(id=>ids.includes(id)))return null;
+  if(ev.req&&!ev.req.every(id=>ids.includes(id)))return{...ev,val:Math.floor(ev.val*(ev.pos?0.3:1)),title:ev.title+(ev.pos?' (減額)':'')};
+  return ev;
+}
+function getRank(s,mode){const b=RANK_B[mode]||RANK_B.standard;if(s>=b.S)return{rank:'S',title:'伝説の経営者',color:'#eab308',bg:'#fefce8',border:'#eab308'};if(s>=b.A)return{rank:'A',title:'カリスマ社長',color:'#ec4899',bg:'#fdf2f8',border:'#ec4899'};if(s>=b.B)return{rank:'B',title:'一流の経営者',color:'#3b82f6',bg:'#eff6ff',border:'#3b82f6'};if(s>=b.C)return{rank:'C',title:'見習い経営者',color:'#22c55e',bg:'#f0fdf4',border:'#22c55e'};return{rank:'D',title:'経営破綻...',color:'#9ca3af',bg:'#f3f4f6',border:'#9ca3af'};}
+const catBg=c=>c==='D'?'#2563eb':c==='M'?'#dc2626':'#16a34a';
+const catBorder=c=>c==='D'?'#93c5fd':c==='M'?'#fca5a5':'#86efac';
+const catLabel=c=>c==='D'?'D:守り':c==='M'?'M:ミドル':'F:フロント';
+const diffBg=d=>{if(d==='S')return{bg:'#7c3aed',color:'#fff'};if(d==='A')return{bg:'#ef4444',color:'#fff'};if(d==='B')return{bg:'#f97316',color:'#fff'};if(d==='C')return{bg:'#eab308',color:'#1e293b'};return{bg:'#9ca3af',color:'#fff'};};
+const INIT_GS=()=>({gs:'rule',round:1,funds:INIT_FUNDS,cards:[],history:[],mode:'standard',shared:{phase:'waiting',diceVal:1,rolling:false,roundResult:null,event:null,eventDecided:null,bestDice:[]}});
+
+const css=`
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+*{font-family:'Outfit',sans-serif;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes popIn{0%{transform:scale(0.9);opacity:0}60%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
+@keyframes stamp{0%{transform:scale(2.5) rotate(-5deg);opacity:0}60%{transform:scale(0.9) rotate(-5deg);opacity:1}100%{transform:scale(1) rotate(-5deg);opacity:1}}
+@keyframes spin3d{0%{transform:translateZ(-36px) rotateX(0) rotateY(0)}100%{transform:translateZ(-36px) rotateX(360deg) rotateY(270deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes flashGreen{0%,100%{background:transparent}50%{background:rgba(34,197,94,0.15)}}
+@keyframes flashRed{0%,100%{background:transparent}50%{background:rgba(239,68,68,0.15)}}
+.fade-in{animation:fadeIn 0.3s ease-out forwards}
+.pop-in{animation:popIn 0.3s ease-out forwards}
+.stamp{animation:stamp 0.5s cubic-bezier(0.6,-0.28,0.735,0.045) forwards}
+.pulse{animation:pulse 1.5s infinite}
+.slide-up{animation:slideUp 0.25s ease-out forwards}
+.modal-in{animation:modalIn 0.2s ease-out forwards}
+.flash-green{animation:flashGreen 0.6s ease-out}
+.flash-red{animation:flashRed 0.6s ease-out}
+.dice-scene{width:72px;height:72px;perspective:500px;margin:0 auto}
+.dice-cube{width:72px;height:72px;position:relative;transform-style:preserve-3d;transition:transform 0.4s ease}
+.dice-cube.rolling{animation:spin3d 0.15s linear infinite}
+.df{position:absolute;width:72px;height:72px;background:white;border:2px solid #cbd5e1;border-radius:10px;display:flex;justify-content:center;align-items:center;box-sizing:border-box}
+.f1{transform:rotateY(0deg) translateZ(36px)}.f2{transform:rotateY(-90deg) translateZ(36px)}.f3{transform:rotateY(180deg) translateZ(36px)}
+.f4{transform:rotateY(90deg) translateZ(36px)}.f5{transform:rotateX(90deg) translateZ(36px)}.f6{transform:rotateX(-90deg) translateZ(36px)}
+.dot{width:11px;height:11px;background:#334155;border-radius:50%;position:absolute}
+.gold .df{border-color:#eab308;background:#fefce8;box-shadow:0 0 10px rgba(234,179,8,0.4)}.gold .dot{background:#ca8a04}
+.pc{top:50%;left:50%;transform:translate(-50%,-50%)}.ptl{top:10px;left:10px}.ptr{top:10px;right:10px}
+.pml{top:50%;left:10px;transform:translateY(-50%)}.pmr{top:50%;right:10px;transform:translateY(-50%)}.pbl{bottom:10px;left:10px}.pbr{bottom:10px;right:10px}
+.scrollbar-hide::-webkit-scrollbar{display:none}
+.hover-row:hover{background:#f8fafc}
+.student-row{transition:background 0.15s ease}
+.student-row:hover{background:#f0f9ff;cursor:pointer}
+.student-row.active{background:#e0f2fe}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.6);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.progress-bar-bg{background:#e2e8f0;border-radius:999px;height:6px;overflow:hidden}
+.progress-bar-fill{height:6px;border-radius:999px;transition:width 0.4s ease}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+.tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;font-family:'DM Mono',monospace}
+.mono{font-family:'DM Mono',monospace}
+`;
+
+const Btn=({onClick,children,color='#0f172a',tc='white',disabled,full,style={}})=>(<button onClick={onClick} disabled={disabled} style={{background:disabled?'#e2e8f0':color,color:disabled?'#94a3b8':tc,border:'none',borderRadius:'10px',padding:'10px 18px',fontWeight:'700',fontSize:'13px',cursor:disabled?'not-allowed':'pointer',width:full?'100%':'auto',...style}}>{children}</button>);
+const Badge=({label,color='#2563eb',bg='#eff6ff'})=>(<span style={{background:bg,color,fontSize:'10px',fontWeight:'700',padding:'3px 8px',borderRadius:'999px'}}>{label}</span>);
+const RoleBadge=({role})=>{const cfg={admin:{label:'管理者',color:'#7c3aed',bg:'#f5f3ff'},teacher:{label:'先生',color:'#0891b2',bg:'#ecfeff'},student:{label:'生徒',color:'#16a34a',bg:'#f0fdf4'}};const c=cfg[role]||cfg.student;return <Badge label={c.label} color={c.color} bg={c.bg}/>;};
+const StatusBadge=({status})=>{const cfg={完了:{color:'#166534',bg:'#dcfce7'},プレイ中:{color:'#1d4ed8',bg:'#dbeafe'},中間決算:{color:'#92400e',bg:'#fef9c3'},未開始:{color:'#64748b',bg:'#f1f5f9'}};const c=cfg[status]||cfg['未開始'];return <Badge label={status} color={c.color} bg={c.bg}/>;};
+const FInput=({label,value,onChange,type='text',placeholder,req})=>(<div style={{marginBottom:'14px'}}>{label&&<label style={{fontSize:'12px',fontWeight:'700',color:'#64748b',display:'block',marginBottom:'4px'}}>{label}{req&&<span style={{color:'red'}}> *</span>}</label>}<input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{width:'100%',padding:'10px 12px',background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'10px',fontWeight:'600',fontSize:'13px',boxSizing:'border-box',outline:'none'}}/></div>);
+
+function Dice3D({val,rolling,best}){
+  const T={1:'rotateY(0deg)',2:'rotateY(-90deg)',3:'rotateY(180deg)',4:'rotateY(90deg)',5:'rotateX(-90deg)',6:'rotateX(90deg)'};
+  const Dot=({cls,red})=><span className={"dot "+cls} style={red?{background:'#ef4444'}:{}} />;
+  const F={1:[<Dot key="c" cls="pc" red/>],2:[<Dot key="tl" cls="ptl"/>,<Dot key="br" cls="pbr"/>],3:[<Dot key="tl" cls="ptl"/>,<Dot key="c" cls="pc"/>,<Dot key="br" cls="pbr"/>],4:[<Dot key="tl" cls="ptl"/>,<Dot key="tr" cls="ptr"/>,<Dot key="bl" cls="pbl"/>,<Dot key="br" cls="pbr"/>],5:[<Dot key="tl" cls="ptl"/>,<Dot key="tr" cls="ptr"/>,<Dot key="c" cls="pc"/>,<Dot key="bl" cls="pbl"/>,<Dot key="br" cls="pbr"/>],6:[<Dot key="tl" cls="ptl"/>,<Dot key="tr" cls="ptr"/>,<Dot key="ml" cls="pml"/>,<Dot key="mr" cls="pmr"/>,<Dot key="bl" cls="pbl"/>,<Dot key="br" cls="pbr"/>]};
+  return(<div className="dice-scene"><div className={`dice-cube${rolling?' rolling':''}${best?' gold':''}`} style={{transform:`translateZ(-36px) ${!rolling?(T[val]||'rotateY(0deg)'):''}`}}>{[1,2,3,4,5,6].map(n=><div key={n} className={`df f${n}`}>{F[n]}</div>)}</div></div>);
+}
+
+// ─── カード選択UI ─────────────────────────────────────────
+function CardSetup({gs,cards,setCards,funds,setFunds,onConfirm,mode,setMode}){
+  const toggleCard=card=>{
+    const owned=cards.some(c=>c.id===card.id);
+    if(owned){setFunds(p=>p+card.cost);setCards(p=>p.filter(c=>c.id!==card.id));}
+    else if(cards.length>=MAX_C)alert(`最大${MAX_C}枚まで！`);
+    else if(funds>=card.cost){setFunds(p=>p-card.cost);setCards(p=>[...p,card]);}
+    else alert("資金が足りません！");
+  };
+  if(gs==='rule')return(
+    <div className="fade-in" style={{padding:'16px'}}>
+      <div style={{background:'white',padding:'24px',borderRadius:'24px',boxShadow:'0 4px 20px rgba(0,0,0,0.08)',border:'3px solid #dbeafe',maxWidth:'360px',margin:'0 auto'}}>
+        <div style={{textAlign:'center',marginBottom:'16px'}}><div style={{fontSize:'36px'}}>📖</div><h2 style={{fontSize:'20px',fontWeight:'900',margin:'4px 0'}}>ルール説明</h2></div>
+        {[{bg:'#eff6ff',bc:'#bfdbfe',icon:'🎯',label:'目的',c:'#1d4ed8',text:`${TOTAL_R}ラウンドで資金を増やし最高ランクを目指せ！`},{bg:'#fefce8',bc:'#fde68a',icon:'🃏',label:'カード',c:'#92400e',text:'戦略カードを選択し、サイコロの出目で利益が決まる'},{bg:'#fef2f2',bc:'#fecaca',icon:'⚠️',label:'イベント',c:'#991b1b',text:'各ラウンドにアクシデントが発生。守りのカードが重要！'},{bg:'#f0fdf4',bc:'#bbf7d0',icon:'🔗',label:'コンボ',c:'#166534',text:'特定のカードの組み合わせでボーナス発動！'}].map(r=>(<div key={r.label} style={{background:r.bg,border:`1px solid ${r.bc}`,borderRadius:'12px',padding:'12px',marginBottom:'8px'}}><b style={{color:r.c}}>{r.icon} {r.label}</b><p style={{margin:'4px 0 0',fontSize:'13px',color:'#475569'}}>{r.text}</p></div>))}
+        <div style={{display:'flex',gap:'8px',marginTop:'12px'}}>{[{m:'standard',icon:'🎯',l:'スタンダード'},{m:'random',icon:'🎲',l:'ランダム'}].map(m=>(<button key={m.m} onClick={()=>setMode(m.m)} style={{flex:1,padding:'10px',borderRadius:'10px',border:`2px solid ${mode===m.m?'#2563eb':'#e2e8f0'}`,background:mode===m.m?'#eff6ff':'white',fontWeight:'700',fontSize:'12px',cursor:'pointer',color:mode===m.m?'#1d4ed8':'#64748b'}}>{m.icon} {m.l}</button>))}</div>
+        <Btn onClick={()=>onConfirm('setup')} color='#0f172a' full style={{padding:'12px',marginTop:'12px'}}>カードを選ぶ →</Btn>
+      </div>
+    </div>
+  );
+  return(
+    <div style={{padding:'8px'}}>
+      <div style={{background:'white',borderRadius:'12px',padding:'10px 12px',marginBottom:'10px',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,zIndex:10,border:'1px solid #e2e8f0'}}>
+        <span style={{fontSize:'13px',fontWeight:'700'}}>選択中: <span style={{color:'#2563eb'}}>{cards.length}</span>/{MAX_C}枚</span>
+        <span style={{fontSize:'13px',fontWeight:'700'}}>残: <span style={{color:funds<0?'#dc2626':'#1e293b'}}>{funds.toLocaleString()}P</span></span>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',paddingBottom:'80px'}}>
+        {CARDS.map(card=>{const owned=cards.some(c=>c.id===card.id);const df=diffBg(card.diff);return(
+          <div key={card.id} onClick={()=>toggleCard(card)} style={{position:'relative',padding:'10px',borderRadius:'12px',border:`2px solid ${owned?catBorder(card.cat):'#e2e8f0'}`,background:'white',cursor:'pointer'}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:'4px'}}><span style={{background:catBg(card.cat),color:'white',fontSize:'9px',fontWeight:'700',padding:'2px 5px',borderRadius:'4px'}}>{card.cat}</span><span style={{background:df.bg,color:df.color,fontSize:'9px',fontWeight:'700',padding:'2px 5px',borderRadius:'4px'}}>{card.diff}</span></div>
+            <div style={{textAlign:'center',margin:'4px 0'}}><div style={{fontSize:'22px'}}>{card.icon}</div><div style={{fontSize:'10px',fontWeight:'700',lineHeight:1.3}}>{card.name}</div></div>
+            <div style={{fontSize:'8px',color:'#94a3b8',background:'#f8fafc',borderRadius:'6px',padding:'4px',marginBottom:'4px',height:'26px',overflow:'hidden'}}>{card.desc}</div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:'10px'}}><span style={{color:'#64748b',fontWeight:'700'}}>-{card.cost}P</span><span style={{color:'#dc2626',fontWeight:'700'}}>+{card.ret}P{card.recur?'∞':'(単発)'}</span></div>
+            {owned&&<div style={{position:'absolute',inset:0,background:'rgba(255,255,255,0.75)',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'10px'}}><span style={{color:'#1d4ed8',fontWeight:'900',border:'2px solid #1d4ed8',padding:'2px 8px',borderRadius:'6px',background:'white',fontSize:'12px',transform:'rotate(-6deg)',display:'block'}}>選択済</span></div>}
+          </div>
+        );})}
+      </div>
+      <div style={{position:'fixed',bottom:0,left:0,right:0,background:'rgba(255,255,255,0.96)',padding:'12px 16px',borderTop:'1px solid #e2e8f0',display:'flex',justifyContent:'center'}}>
+        <Btn onClick={()=>onConfirm('playing')} disabled={cards.length<MIN_C||funds<0} color='#2563eb' style={{padding:'12px 32px',fontSize:'14px'}}>{cards.length<MIN_C?`あと${MIN_C-cards.length}枚選択`:'デッキを確定してゲーム開始 →'}</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ─── 生徒画面（受信専用）─────────────────────────────────
+function StudentGameView({user,st,onSetup,onReset,onExit}){
+  const [showHist,setShowHist]=useState(false);
+  const [showRank,setShowRank]=useState(false);
+  const [advice,setAdvice]=useState(null);
+  const [localCards,setLocalCards]=useState(st.cards||[]);
+  const [localFunds,setLocalFunds]=useState(st.funds||INIT_FUNDS);
+  const [localMode,setLocalMode]=useState(st.mode||'standard');
+
+  useEffect(()=>{setLocalCards(st.cards||[]);setLocalFunds(st.funds||INIT_FUNDS);},[st.cards,st.funds]);
+  useEffect(()=>{
+    if(st.gs==='result'){setShowRank(false);setAdvice(ADVICE[Math.floor(Math.random()*ADVICE.length)]);const t=setTimeout(()=>setShowRank(true),1500);return()=>clearTimeout(t);}
+  },[st.gs]);
+
+  if(st.gs==='rule'||st.gs==='setup'||st.gs==='second_setup')return(
+    <CardSetup gs={st.gs} cards={localCards} setCards={setLocalCards} funds={localFunds} setFunds={setLocalFunds} mode={localMode} setMode={setLocalMode}
+      onConfirm={(nextGs)=>onSetup(nextGs,localCards,localFunds,localMode)}/>
+  );
+
+  if(st.gs==='playing'){
+    const sh=st.shared||{};const ph=sh.phase||'waiting';const rv=sh.diceVal||1;const rolling=sh.rolling||false;
+    const rr=sh.roundResult||null;const ev=sh.event||null;const ed=sh.eventDecided;
+    const isBest=(sh.bestDice||[]).includes(rv);
+    return(
+      <div className="fade-in" style={{padding:'12px',display:'flex',flexDirection:'column',gap:'12px'}}>
+        <div style={{display:'flex',gap:'8px',overflowX:'auto',paddingBottom:'4px'}} className="scrollbar-hide">
+          {(st.cards||[]).map(c=>(<div key={c.id} style={{flexShrink:0,width:'60px',padding:'6px',borderRadius:'10px',border:`2px solid ${catBorder(c.cat)}`,background:'white',textAlign:'center'}}><div style={{fontSize:'18px'}}>{c.icon}</div><div style={{fontSize:'8px',fontWeight:'700',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{c.name}</div><div style={{fontSize:'8px',color:'#dc2626',fontWeight:'700'}}>+{c.ret}P</div></div>))}
+        </div>
+        <div style={{background:'white',borderRadius:'24px',padding:'24px',boxShadow:'0 4px 20px rgba(0,0,0,0.08)',border:'3px solid #f1f5f9',display:'flex',flexDirection:'column',alignItems:'center',gap:'16px'}}>
+          <div style={{fontSize:'13px',fontWeight:'700',color:'#94a3b8'}}>Round {st.round} / {TOTAL_R}</div>
+          <Dice3D val={rv} rolling={rolling} best={isBest&&!rolling&&ph==='result'}/>
+          {isBest&&!rolling&&ph==='result'&&<div className="stamp" style={{fontSize:'11px',fontWeight:'700',color:'#92400e',background:'#fef9c3',border:'1px solid #fde68a',padding:'4px 12px',borderRadius:'999px'}}>🌟 ベストダイス！</div>}
+          {ph==='waiting'&&<div style={{textAlign:'center',padding:'16px'}}><div className="pulse" style={{fontSize:'32px',marginBottom:'8px'}}>⏳</div><div style={{fontWeight:'700',color:'#64748b',fontSize:'14px'}}>先生がサイコロを振るのを待っています...</div></div>}
+          {ph==='result'&&rr&&(
+            <div className="pop-in" style={{width:'100%',textAlign:'center'}}>
+              <div style={{fontSize:'11px',color:'#94a3b8',fontWeight:'700',marginBottom:'4px'}}>今ラウンドの売上</div>
+              <div style={{fontSize:'36px',fontWeight:'900',color:rr.total>=0?'#1d4ed8':'#dc2626',marginBottom:'12px'}}>{rr.total>=0?'+':''}{rr.total.toLocaleString()}P</div>
+              <div style={{marginBottom:'12px'}}>{(rr.details||[]).map((d,i)=>(<div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:'11px',padding:'4px 8px',borderRadius:'6px',marginBottom:'2px',background:d.hit?'#f0fdf4':'#f8fafc',color:d.hit?'#166534':'#94a3b8'}}><span>{d.icon} {d.name}</span><span style={{fontWeight:'700'}}>{d.hit?`+${d.val}P`:'外れ'}</span></div>))}</div>
+              {ev&&ed===null&&<div className="pulse" style={{background:'#f5f3ff',border:'1px solid #ddd6fe',borderRadius:'12px',padding:'12px',marginBottom:'8px'}}><div style={{fontWeight:'700',color:'#7c3aed',fontSize:'13px'}}>⏳ 先生がイベントを判定中...</div></div>}
+              {ev&&ed===true&&<div className="pop-in" style={{background:ev.pos?'#fffbeb':'#fef2f2',border:`1px solid ${ev.pos?'#fde68a':'#fecaca'}`,borderRadius:'12px',padding:'14px',marginBottom:'8px',textAlign:'left'}}><div style={{fontWeight:'900',fontSize:'14px',color:ev.pos?'#92400e':'#dc2626',marginBottom:'4px'}}>{ev.pos?'✨':'⚠️'} {ev.title}</div><p style={{fontSize:'12px',color:'#475569',marginBottom:'6px',lineHeight:1.5}}>{ev.desc}</p><div style={{textAlign:'right',fontWeight:'900',fontSize:'18px',color:ev.pos?'#92400e':'#dc2626'}}>{ev.val>0?'+':''}{ev.val}P</div></div>}
+              {ed===false&&<div style={{background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'8px',marginBottom:'8px',fontSize:'12px',color:'#94a3b8',textAlign:'center'}}>今回はイベントなし</div>}
+              {(ed!==null||!ev)&&<div className="pulse" style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:'10px',padding:'10px',fontSize:'12px',color:'#16a34a',fontWeight:'700',textAlign:'center'}}>⏳ 先生が次のラウンドへ進めるのを待っています...</div>}
+            </div>
+          )}
+        </div>
+        <div style={{background:'#0f172a',color:'white',borderRadius:'12px',padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}><span style={{fontSize:'12px',fontWeight:'700',opacity:0.5}}>総資金</span><span style={{fontSize:'24px',fontWeight:'900'}}>{st.funds.toLocaleString()}P</span></div>
+        <button onClick={()=>setShowHist(true)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'12px',color:'#94a3b8',textDecoration:'underline'}}>📜 履歴を見る</button>
+        {showHist&&<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center',padding:'16px'}}><div style={{background:'white',width:'100%',maxWidth:'340px',borderRadius:'16px',overflow:'hidden',display:'flex',flexDirection:'column',maxHeight:'65vh'}}><div style={{padding:'12px 16px',borderBottom:'1px solid #f1f5f9',display:'flex',justifyContent:'space-between',fontWeight:'700',background:'#f8fafc'}}><span>📜 経営履歴</span><button onClick={()=>setShowHist(false)} style={{background:'none',border:'none',cursor:'pointer',fontSize:'16px'}}>✕</button></div><div style={{flex:1,overflowY:'auto',padding:'12px'}}>{(!st.history||st.history.length===0)&&<div style={{textAlign:'center',color:'#94a3b8',padding:'16px',fontSize:'13px'}}>まだ履歴がありません</div>}{(st.history||[]).map((rec,i)=><div key={i} style={{border:'1px solid #f1f5f9',borderRadius:'8px',padding:'8px',marginBottom:'6px',fontSize:'12px'}}><div style={{display:'flex',justifyContent:'space-between',fontWeight:'700'}}><span>R{rec.round} 🎲{rec.dice}</span><span style={{color:rec.total>=0?'#2563eb':'#dc2626'}}>{rec.total>=0?'+':''}{(rec.total||0).toLocaleString()}P</span></div>{rec.event&&<div style={{fontSize:'10px',fontWeight:'700',color:rec.event.pos?'#d97706':'#dc2626',marginTop:'2px'}}>{rec.event.pos?'✨':'⚠️'} {rec.event.title}</div>}</div>)}</div></div></div>}
+      </div>
+    );
+  }
+  if(st.gs==='interim')return(
+    <div className="fade-in" style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'50vh',padding:'16px'}}>
+      <div style={{background:'white',padding:'32px',borderRadius:'24px',boxShadow:'0 4px 20px rgba(0,0,0,0.08)',maxWidth:'320px',width:'100%',textAlign:'center'}}>
+        <div style={{fontSize:'48px',marginBottom:'12px'}}>📊</div>
+        <h2 style={{fontSize:'22px',fontWeight:'900',marginBottom:'8px'}}>中間決算</h2>
+        <p style={{fontSize:'12px',color:'#94a3b8',marginBottom:'16px'}}>前半4ラウンド終了。後半戦で戦略を見直せます。</p>
+        <div style={{fontSize:'44px',fontWeight:'900',color:'#1d4ed8',marginBottom:'20px'}}>{st.funds.toLocaleString()}<span style={{fontSize:'18px'}}>P</span></div>
+        <div className="pulse" style={{background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:'10px',padding:'10px',fontSize:'12px',color:'#1d4ed8',fontWeight:'700'}}>⏳ 先生が後半戦を開始するのを待っています...</div>
+      </div>
+    </div>
+  );
+  if(st.gs==='result'){
+    const rank=getRank(st.funds,st.mode||'standard');
+    return(
+      <div className="fade-in" style={{padding:'16px',paddingBottom:'80px'}}>
+        <div style={{background:'white',padding:'24px',borderRadius:'24px',boxShadow:'0 4px 20px rgba(0,0,0,0.08)',border:'3px solid #f1f5f9',textAlign:'center',marginBottom:'12px'}}>
+          <div style={{fontSize:'48px',marginBottom:'8px'}}>🏆</div>
+          <div style={{fontSize:'14px',color:'#64748b',fontWeight:'700',marginBottom:'4px'}}>株式会社{user?.name}</div>
+          <div style={{fontSize:'44px',fontWeight:'900',color:'#1e293b',marginBottom:'16px'}}>{st.funds.toLocaleString()}<span style={{fontSize:'18px'}}>P</span></div>
+          {showRank?<div className="stamp" style={{display:'inline-block',border:`4px solid ${rank.border}`,background:rank.bg,padding:'16px 32px',borderRadius:'16px',marginBottom:'12px'}}><div style={{fontSize:'56px',fontWeight:'900',color:rank.color}}>{rank.rank}</div><div style={{fontSize:'13px',fontWeight:'700',color:rank.color}}>{rank.title}</div></div>:<div style={{height:'88px',display:'flex',alignItems:'center',justifyContent:'center',color:'#cbd5e1',fontSize:'13px'}}>ランク判定中...</div>}
+        </div>
+        {advice&&<div style={{background:'#fffbeb',border:'1px solid #fde68a',padding:'16px',borderRadius:'16px',marginBottom:'12px'}}><div style={{fontSize:'11px',fontWeight:'900',color:'#d97706',marginBottom:'4px'}}>🧙 老師のアドバイス</div><p style={{fontSize:'12px',color:'#92400e',lineHeight:1.7,margin:0}}>{advice}</p></div>}
+        <div style={{background:'white',borderRadius:'16px',border:'1px solid #f1f5f9',marginBottom:'12px'}}><div style={{padding:'12px 16px',borderBottom:'1px solid #f1f5f9',fontWeight:'700',fontSize:'13px',color:'#475569'}}>📜 経営履歴</div>{(st.history||[]).map((rec,i)=><div key={i} style={{padding:'10px 16px',borderBottom:'1px solid #f8fafc',fontSize:'12px'}}><div style={{display:'flex',justifyContent:'space-between',fontWeight:'700',marginBottom:'2px'}}><span>R{rec.round} 🎲{rec.dice}</span><span style={{color:rec.total>=0?'#2563eb':'#dc2626'}}>{rec.total>=0?'+':''}{(rec.total||0).toLocaleString()}P</span></div>{rec.event&&<div style={{fontSize:'10px',fontWeight:'700',color:rec.event.pos?'#d97706':'#dc2626'}}>{rec.event.pos?'✨':'⚠️'} {rec.event.title}</div>}</div>)}</div>
+        <div style={{position:'fixed',bottom:0,left:0,right:0,padding:'12px 16px',background:'white',borderTop:'1px solid #e2e8f0',display:'flex',gap:'10px'}}>
+          <Btn onClick={()=>onExit&&onExit()} color='#f1f5f9' tc='#475569' style={{flex:1,padding:'12px'}}>ホームへ戻る</Btn>
+          <Btn onClick={()=>onReset&&onReset()} color='#0f172a' style={{flex:2,padding:'12px'}}>もう一度プレイ</Btn>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+// ─── 先生操作モーダル内のサイコロパネル ─────────────────
+function TeacherGameControl({studentName,st,onRoll,onEventDecide,onNextRound,onNextHalf,onClose}){
+  const [rolling,setRolling]=useState(false);
+  const sh=st.shared||{};
+  const phase=sh.phase||'waiting';
+  const dv=sh.diceVal||1;
+  const rr=sh.roundResult||null;
+  const ev=sh.event||null;
+  const ed=sh.eventDecided;
+  const isBest=(sh.bestDice||[]).includes(dv)&&!rolling&&phase==='result';
+
+  const doRoll=()=>{
+    if(rolling||phase==='result')return;
+    setRolling(true);
+    let count=0;
+    const iv=setInterval(()=>{
+      const n=Math.ceil(Math.random()*6);
+      onRoll(n,true);
+      if(++count>20){
+        clearInterval(iv);
+        const final=Math.ceil(Math.random()*6);
+        setRolling(false);
+        onRoll(final,false);
+      }
+    },80);
+  };
+
+  return(
+    <div style={{display:'flex',flexDirection:'column',height:'100%',maxHeight:'85vh',overflow:'hidden'}}>
+      {/* モーダルヘッダー */}
+      <div style={{background:'#0f172a',color:'white',padding:'14px 18px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0,borderRadius:'16px 16px 0 0'}}>
+        <div>
+          <div style={{fontSize:'10px',opacity:0.5,marginBottom:'2px',fontWeight:'600'}}>操作中</div>
+          <div style={{fontWeight:'800',fontSize:'16px'}}>{studentName}</div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:'10px',opacity:0.5}}>Round</div>
+            <div style={{fontWeight:'900',fontSize:'18px',fontFamily:'DM Mono,monospace'}}>R{st.round}<span style={{opacity:0.4,fontSize:'13px'}}>/{TOTAL_R}</span></div>
+          </div>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontSize:'10px',opacity:0.5}}>資金</div>
+            <div style={{fontWeight:'900',fontSize:'15px',fontFamily:'DM Mono,monospace',color:'#7dd3fc'}}>{(st.funds||0).toLocaleString()}P</div>
+          </div>
+          <button onClick={onClose} style={{background:'rgba(255,255,255,0.1)',border:'none',color:'white',borderRadius:'8px',padding:'6px 10px',cursor:'pointer',fontSize:'13px',fontWeight:'700'}}>✕ 閉じる</button>
+        </div>
+      </div>
+
+      <div style={{overflowY:'auto',flex:1,padding:'16px',display:'flex',flexDirection:'column',gap:'14px'}}>
+        {/* カード選択待ち */}
+        {['rule','setup','second_setup'].includes(st.gs)&&(
+          <div style={{textAlign:'center',padding:'32px 16px',border:'2px dashed #cbd5e1',borderRadius:'14px',background:'#f8fafc'}}>
+            <div style={{fontSize:'36px',marginBottom:'8px'}}>⏳</div>
+            <div style={{fontWeight:'700',color:'#64748b',fontSize:'14px'}}>生徒がカードを選択中...</div>
+          </div>
+        )}
+
+        {/* プレイ中 */}
+        {st.gs==='playing'&&(
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'14px'}}>
+            <Dice3D val={dv} rolling={rolling} best={isBest}/>
+            {isBest&&<div className="stamp" style={{fontSize:'11px',fontWeight:'700',color:'#92400e',background:'#fef9c3',border:'1px solid #fde68a',padding:'4px 12px',borderRadius:'999px'}}>🌟 ベストダイス！</div>}
+            {phase==='waiting'&&(
+              <Btn onClick={doRoll} disabled={rolling} color='#0891b2' full style={{padding:'14px',fontSize:'16px',borderRadius:'12px'}}>🎲 サイコロを振る</Btn>
+            )}
+            {phase==='result'&&rr&&(
+              <div style={{width:'100%'}}>
+                <div style={{textAlign:'center',background:'#f8fafc',borderRadius:'12px',padding:'12px',marginBottom:'10px'}}>
+                  <div style={{fontSize:'11px',color:'#94a3b8',marginBottom:'2px'}}>出目 <span style={{fontFamily:'DM Mono,monospace',fontWeight:'700',fontSize:'16px',color:'#1e293b'}}>{sh.diceVal}</span>　今ラウンド</div>
+                  <div style={{fontSize:'30px',fontWeight:'900',color:rr.total>=0?'#1d4ed8':'#dc2626'}}>{rr.total>=0?'+':''}{rr.total.toLocaleString()}P</div>
+                </div>
+                {/* カード結果 */}
+                <div style={{marginBottom:'10px'}}>
+                  {(rr.details||[]).map((d,i)=><div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:'11px',padding:'5px 8px',borderRadius:'6px',marginBottom:'3px',background:d.hit?'#f0fdf4':'#f8fafc',color:d.hit?'#166534':'#94a3b8',border:`1px solid ${d.hit?'#bbf7d0':'transparent'}`}}><span>{d.icon} {d.name}</span><span style={{fontWeight:'700'}}>{d.hit?`+${d.val}P`:'外れ'}</span></div>)}
+                </div>
+                {/* イベント判定 */}
+                {ev&&ed===null&&(
+                  <div style={{background:'#f5f3ff',border:'2px solid #ddd6fe',borderRadius:'14px',padding:'14px',marginBottom:'10px'}}>
+                    <div style={{fontWeight:'900',fontSize:'12px',color:'#7c3aed',marginBottom:'6px'}}>⚡ イベント判定</div>
+                    <div style={{fontWeight:'700',fontSize:'14px',color:'#1e293b',marginBottom:'4px'}}>{ev.pos?'✨':'⚠️'} {ev.title}</div>
+                    <p style={{fontSize:'12px',color:'#475569',margin:'0 0 8px',lineHeight:1.4}}>{ev.desc}</p>
+                    <div style={{fontWeight:'700',fontSize:'14px',color:ev.pos?'#16a34a':'#dc2626',marginBottom:'10px'}}>{ev.val>0?'+':''}{ev.val}P</div>
+                    <div style={{display:'flex',gap:'8px'}}>
+                      <Btn onClick={()=>onEventDecide(true)} color={ev.pos?'#16a34a':'#dc2626'} style={{flex:1,padding:'10px',fontSize:'12px'}}>{ev.pos?'✨ 発生させる':'⚠️ 発生させる'}</Btn>
+                      <Btn onClick={()=>onEventDecide(false)} color='#64748b' style={{flex:1,padding:'10px',fontSize:'12px'}}>スキップ</Btn>
+                    </div>
+                  </div>
+                )}
+                {(!ev||ed!==null)&&(
+                  <Btn onClick={onNextRound} color='#0f172a' full style={{padding:'13px',fontSize:'14px',borderRadius:'12px'}}>
+                    {st.round===4?'→ 中間決算へ':st.round>=TOTAL_R?'→ ゲーム終了':'→ 次のラウンドへ'}
+                  </Btn>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 中間決算 */}
+        {st.gs==='interim'&&(
+          <div style={{textAlign:'center',padding:'16px'}}>
+            <div style={{fontSize:'36px',marginBottom:'8px'}}>📊</div>
+            <div style={{fontWeight:'900',fontSize:'18px',marginBottom:'4px'}}>中間決算</div>
+            <div style={{fontSize:'30px',fontWeight:'900',color:'#1d4ed8',marginBottom:'16px'}}>{st.funds.toLocaleString()}P</div>
+            <Btn onClick={onNextHalf} color='#0f172a' full style={{padding:'13px',fontSize:'14px',borderRadius:'12px'}}>後半戦を開始する →</Btn>
+          </div>
+        )}
+
+        {/* 終了 */}
+        {st.gs==='result'&&(
+          <div style={{textAlign:'center',padding:'16px'}}>
+            <div style={{fontSize:'36px',marginBottom:'8px'}}>🏆</div>
+            <div style={{fontWeight:'900',fontSize:'18px',marginBottom:'4px'}}>ゲーム終了</div>
+            <div style={{fontSize:'30px',fontWeight:'900',color:'#1d4ed8',marginBottom:'4px'}}>{st.funds.toLocaleString()}P</div>
+            <div style={{fontSize:'14px',fontWeight:'700',color:getRank(st.funds,st.mode||'standard').color}}>{getRank(st.funds,st.mode||'standard').rank} · {getRank(st.funds,st.mode||'standard').title}</div>
+          </div>
+        )}
+
+        {/* 保有カード */}
+        {(st.cards||[]).length>0&&(
+          <div>
+            <div style={{fontSize:'11px',fontWeight:'700',color:'#94a3b8',marginBottom:'6px',textTransform:'uppercase',letterSpacing:'0.05em'}}>選択カード（{st.cards.length}枚）</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:'5px'}}>
+              {st.cards.map(c=><span key={c.id} style={{background:'white',border:`1px solid ${catBorder(c.cat)}`,borderRadius:'6px',padding:'3px 8px',fontSize:'11px',fontWeight:'600',display:'flex',alignItems:'center',gap:'3px'}}><span>{c.icon}</span><span>{c.name}</span></span>)}
+            </div>
+          </div>
+        )}
+
+        {/* ラウンド履歴 */}
+        {(st.history||[]).length>0&&(
+          <div>
+            <div style={{fontSize:'11px',fontWeight:'700',color:'#94a3b8',marginBottom:'6px',textTransform:'uppercase',letterSpacing:'0.05em'}}>ラウンド履歴</div>
+            <div style={{background:'white',borderRadius:'10px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+              {st.history.map((rec,i)=><div key={i} style={{padding:'6px 12px',borderBottom:'1px solid #f8fafc',fontSize:'11px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontWeight:'600',color:'#64748b',fontFamily:'DM Mono,monospace'}}>R{rec.round} 🎲{rec.dice}</span>
+                <span style={{fontWeight:'700',color:rec.total>=0?'#2563eb':'#dc2626',fontFamily:'DM Mono,monospace'}}>{rec.total>=0?'+':''}{(rec.total||0).toLocaleString()}P</span>
+              </div>)}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── 先生：生徒進捗ダッシュボード（メイン改善部分）────────
+function TeacherProgress({user,accounts,gameStates,setGameStates,gameLog,setGameLog}){
+  const myStudents=accounts.filter(a=>a.role==='student'&&a.teacherId===user.id);
+  const [activeId,setActiveId]=useState(null);
+  const [filterStatus,setFilterStatus]=useState('all');
+  const [sortKey,setSortKey]=useState('name'); // name | round | funds | status
+
+  const getState=id=>gameStates[id]||INIT_GS();
+  const setState=(id,updater)=>{
+    setGameStates(prev=>{
+      const cur=prev[id]||INIT_GS();
+      const next=typeof updater==='function'?updater(cur):{...cur,...updater};
+      return{...prev,[id]:next};
+    });
+  };
+
+  const handleRoll=(sid,diceVal,rolling)=>{
+    if(!rolling){
+      const st=getState(sid);
+      const cards=st.cards||[];
+      let total=0,details=[],toRemove=[];
+      cards.forEach(card=>{
+        const hit=card.diff==='D'||card.target.includes(diceVal);
+        const profit=hit?card.ret:0;
+        details.push({name:card.name,val:profit,hit,icon:card.icon});
+        if(hit){total+=profit;if(!card.recur)toRemove.push(card.id);}
+      });
+      const ev=checkEvent(st.round,cards,st.mode||'standard');
+      const cnt={1:0,2:0,3:0,4:0,5:0,6:0};
+      cards.forEach(c=>{if(c.target)c.target.forEach(n=>cnt[n]++);});
+      const mx=Math.max(0,...Object.values(cnt));
+      const bestDice=mx>0?Object.keys(cnt).filter(n=>cnt[n]===mx).map(Number):[];
+      setState(sid,cur=>({...cur,funds:cur.funds+total,shared:{phase:'result',diceVal,rolling:false,roundResult:{dice:diceVal,total,details,removed:toRemove},event:ev||null,eventDecided:ev?null:false,bestDice}}));
+    } else {
+      setState(sid,cur=>({...cur,shared:{...cur.shared,diceVal,rolling:true}}));
+    }
+  };
+
+  const handleEventDecide=(sid,decided)=>{
+    setState(sid,cur=>{
+      const ev=cur.shared?.event;
+      const bonus=decided&&ev?ev.val:0;
+      return{...cur,funds:cur.funds+bonus,shared:{...cur.shared,eventDecided:decided}};
+    });
+  };
+
+  const handleNextRound=(sid)=>{
+    setState(sid,cur=>{
+      const rr=cur.shared?.roundResult||{};
+      const ev=cur.shared?.eventDecided===true?cur.shared?.event:null;
+      const rec={round:cur.round,dice:rr.dice,total:rr.total,event:ev?{title:ev.title,val:ev.val,pos:ev.pos}:null};
+      const newHist=[...(cur.history||[]),rec];
+      const newCards=(cur.cards||[]).filter(c=>!(rr.removed||[]).includes(c.id));
+      const nextGs=cur.round===4?'interim':cur.round>=TOTAL_R?'result':'playing';
+      const nextRound=nextGs==='playing'?cur.round+1:cur.round;
+      if(nextGs==='result'){
+        const rankInfo=getRank(cur.funds,cur.mode||'standard');
+        setGameLog(prev=>({...prev,[sid]:[...(prev[sid]||[]),{funds:cur.funds,mode:cur.mode,rank:rankInfo.rank,history:newHist,playedAt:new Date().toLocaleString('ja-JP')}]}));
+      }
+      return{...cur,cards:newCards,history:newHist,round:nextRound,gs:nextGs,shared:{phase:'waiting',diceVal:1,rolling:false,roundResult:null,event:null,eventDecided:null,bestDice:[]}};
+    });
+  };
+
+  const handleNextHalf=(sid)=>{
+    setState(sid,cur=>({...cur,gs:'second_setup',round:5,shared:{phase:'waiting',diceVal:1,rolling:false,roundResult:null,event:null,eventDecided:null,bestDice:[]}}));
+  };
+
+  const getStatusInfo=gs=>{
+    if(gs==='result')return{label:'完了',color:'#16a34a',bg:'#dcfce7',dot:'#16a34a',order:3};
+    if(gs==='playing')return{label:'プレイ中',color:'#1d4ed8',bg:'#dbeafe',dot:'#3b82f6',order:1};
+    if(gs==='interim')return{label:'中間決算',color:'#92400e',bg:'#fef9c3',dot:'#eab308',order:2};
+    return{label:'未開始',color:'#64748b',bg:'#f1f5f9',dot:'#cbd5e1',order:0};
+  };
+
+  const getRoundProgress=st=>{
+    if(st.gs==='result')return TOTAL_R;
+    if(st.gs==='playing'||st.gs==='interim')return st.round-1;
+    return 0;
+  };
+
+  // 集計
+  const counts={done:0,playing:0,interim:0,waiting:0};
+  myStudents.forEach(s=>{
+    const gs=getState(s.id).gs;
+    if(gs==='result')counts.done++;
+    else if(gs==='playing')counts.playing++;
+    else if(gs==='interim')counts.interim++;
+    else counts.waiting++;
+  });
+  const active=counts.playing+counts.interim;
+
+  // フィルタ・ソート
+  const filtered=myStudents.filter(s=>{
+    if(filterStatus==='all')return true;
+    const gs=getState(s.id).gs;
+    if(filterStatus==='playing')return gs==='playing'||gs==='interim';
+    if(filterStatus==='done')return gs==='result';
+    if(filterStatus==='waiting')return!['playing','interim','result'].includes(gs);
+    return true;
+  }).sort((a,b)=>{
+    const sa=getState(a.id),sb=getState(b.id);
+    if(sortKey==='name')return a.name.localeCompare(b.name,'ja');
+    if(sortKey==='round')return getRoundProgress(sb)-getRoundProgress(sa);
+    if(sortKey==='funds')return (sb.funds||0)-(sa.funds||0);
+    if(sortKey==='status')return getStatusInfo(sb.gs).order-getStatusInfo(sa.gs).order;
+    return 0;
+  });
+
+  const activeSt=activeId?getState(activeId):null;
+  const activeStudent=activeId?myStudents.find(x=>x.id===activeId):null;
+
+  return(
+    <div style={{display:'flex',flexDirection:'column',height:'100%',overflow:'hidden'}}>
+      {/* ─── 上部サマリーバー ─── */}
+      <div style={{background:'#0f172a',padding:'14px 24px',display:'flex',alignItems:'center',gap:'0',flexShrink:0}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:'11px',color:'#64748b',fontWeight:'600',marginBottom:'2px',textTransform:'uppercase',letterSpacing:'0.08em'}}>クラス進捗</div>
+          <div style={{fontSize:'14px',fontWeight:'700',color:'white'}}>{user.class} · {myStudents.length}名</div>
+        </div>
+        {/* サマリーカード群 */}
+        {[
+          {label:'プレイ中',val:active,color:'#38bdf8',icon:'🎮'},
+          {label:'完了',val:counts.done,color:'#4ade80',icon:'✅'},
+          {label:'未開始',val:counts.waiting,color:'#94a3b8',icon:'⏳'},
+        ].map(c=>(
+          <div key={c.label} style={{display:'flex',alignItems:'center',gap:'8px',padding:'0 20px',borderLeft:'1px solid #1e293b'}}>
+            <span style={{fontSize:'18px'}}>{c.icon}</span>
+            <div>
+              <div style={{fontSize:'20px',fontWeight:'900',color:c.color,lineHeight:1,fontFamily:'DM Mono,monospace'}}>{c.val}</div>
+              <div style={{fontSize:'10px',color:'#64748b',fontWeight:'600'}}>{c.label}</div>
+            </div>
+          </div>
+        ))}
+        {/* クラス全体進捗バー */}
+        <div style={{paddingLeft:'20px',borderLeft:'1px solid #1e293b',minWidth:'120px'}}>
+          <div style={{fontSize:'10px',color:'#64748b',fontWeight:'600',marginBottom:'4px'}}>完了率</div>
+          <div className="progress-bar-bg" style={{background:'#1e293b'}}>
+            <div className="progress-bar-fill" style={{width:`${myStudents.length?Math.round(counts.done/myStudents.length*100):0}%`,background:'#4ade80'}}/>
+          </div>
+          <div style={{fontSize:'11px',color:'#94a3b8',fontWeight:'700',marginTop:'2px',fontFamily:'DM Mono,monospace'}}>{myStudents.length?Math.round(counts.done/myStudents.length*100):0}%</div>
+        </div>
+      </div>
+
+      {/* ─── フィルタ・ソートバー ─── */}
+      <div style={{background:'white',padding:'10px 24px',display:'flex',alignItems:'center',gap:'12px',borderBottom:'2px solid #f1f5f9',flexShrink:0}}>
+        <div style={{display:'flex',gap:'4px',flex:1}}>
+          {[['all','すべて',myStudents.length],['playing','進行中',active],['done','完了',counts.done],['waiting','未開始',counts.waiting]].map(([v,l,n])=>(
+            <button key={v} onClick={()=>setFilterStatus(v)} style={{padding:'5px 12px',borderRadius:'7px',border:`1px solid ${filterStatus===v?'#0891b2':'#e2e8f0'}`,background:filterStatus===v?'#ecfeff':'white',color:filterStatus===v?'#0891b2':'#64748b',fontWeight:'700',fontSize:'12px',cursor:'pointer',display:'flex',alignItems:'center',gap:'5px'}}>
+              {l}<span style={{background:filterStatus===v?'#0891b2':'#e2e8f0',color:filterStatus===v?'white':'#94a3b8',fontSize:'10px',fontWeight:'700',padding:'1px 6px',borderRadius:'999px'}}>{n}</span>
+            </button>
+          ))}
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:'6px',fontSize:'11px',color:'#94a3b8'}}>
+          <span style={{fontWeight:'600'}}>並び替え：</span>
+          {[['name','名前'],['round','R数'],['funds','資金'],['status','状態']].map(([v,l])=>(
+            <button key={v} onClick={()=>setSortKey(v)} style={{padding:'4px 10px',borderRadius:'6px',border:'none',background:sortKey===v?'#0f172a':'transparent',color:sortKey===v?'white':'#94a3b8',fontSize:'11px',fontWeight:'700',cursor:'pointer'}}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── 生徒一覧テーブル ─── */}
+      <div style={{flex:1,overflowY:'auto',background:'#f8fafc'}}>
+        {myStudents.length===0?(
+          <div style={{padding:'48px',textAlign:'center',color:'#94a3b8'}}>
+            <div style={{fontSize:'36px',marginBottom:'8px'}}>👥</div>
+            <div style={{fontWeight:'700',fontSize:'14px'}}>担当生徒がいません</div>
+          </div>
+        ):(
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead>
+              <tr style={{background:'#f1f5f9',fontSize:'11px',color:'#64748b',fontWeight:'700',textTransform:'uppercase',letterSpacing:'0.05em',position:'sticky',top:0,zIndex:5}}>
+                <th style={{padding:'9px 16px 9px 20px',textAlign:'left',width:'180px'}}>生徒名</th>
+                <th style={{padding:'9px 12px',textAlign:'center',width:'80px'}}>状態</th>
+                <th style={{padding:'9px 12px',textAlign:'center',width:'140px'}}>ラウンド進捗</th>
+                <th style={{padding:'9px 12px',textAlign:'right',width:'110px'}}>現在資金</th>
+                <th style={{padding:'9px 12px',textAlign:'center',width:'80px'}}>直近出目</th>
+                <th style={{padding:'9px 12px',textAlign:'left'}}>直近イベント</th>
+                <th style={{padding:'9px 16px',textAlign:'center',width:'80px'}}>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((s,idx)=>{
+                const st=getState(s.id);
+                const si=getStatusInfo(st.gs);
+                const progress=getRoundProgress(st);
+                const pct=Math.round(progress/TOTAL_R*100);
+                const rank=st.gs==='result'?getRank(st.funds,st.mode||'standard'):null;
+                const lastHist=st.history&&st.history.length>0?st.history[st.history.length-1]:null;
+                const sh=st.shared||{};
+                const waitingDice=st.gs==='playing'&&sh.phase==='waiting';
+                const resultDice=st.gs==='playing'&&sh.phase==='result';
+                // 直近出目
+                const latestDice=resultDice?sh.diceVal:(lastHist?lastHist.dice:null);
+                // 直近イベント
+                const latestEvent=resultDice&&sh.eventDecided===true&&sh.event
+                  ? sh.event
+                  : lastHist?.event||null;
+
+                return(
+                  <tr key={s.id} className="student-row" onClick={()=>setActiveId(s.id)}
+                    style={{borderBottom:'1px solid #f1f5f9',background:idx%2===0?'white':'#fafafa',transition:'background 0.12s'}}>
+                    {/* 名前 */}
+                    <td style={{padding:'10px 16px 10px 20px'}}>
+                      <div style={{fontWeight:'700',fontSize:'13px',color:'#1e293b'}}>{s.name}</div>
+                      {rank&&<div style={{fontSize:'10px',fontWeight:'700',color:rank.color,marginTop:'1px'}}>{rank.rank} · {rank.title}</div>}
+                    </td>
+                    {/* 状態 */}
+                    <td style={{padding:'10px 12px',textAlign:'center'}}>
+                      <div style={{display:'inline-flex',alignItems:'center',gap:'4px',background:si.bg,padding:'3px 8px',borderRadius:'6px'}}>
+                        <span className="status-dot" style={{background:si.dot,margin:0}}/>
+                        <span style={{color:si.color,fontWeight:'700',fontSize:'10px'}}>{si.label}</span>
+                      </div>
+                    </td>
+                    {/* ラウンド進捗バー */}
+                    <td style={{padding:'10px 12px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:'7px'}}>
+                        <div style={{flex:1}}>
+                          <div className="progress-bar-bg">
+                            <div className="progress-bar-fill" style={{
+                              width:`${pct}%`,
+                              background:st.gs==='result'?'#4ade80':st.gs==='interim'?'#eab308':'#38bdf8'
+                            }}/>
+                          </div>
+                        </div>
+                        <span style={{fontSize:'11px',fontWeight:'700',color:'#475569',fontFamily:'DM Mono,monospace',minWidth:'36px'}}>
+                          {progress}/{TOTAL_R}
+                        </span>
+                      </div>
+                      {waitingDice&&(
+                        <div className="pulse" style={{fontSize:'10px',color:'#0891b2',fontWeight:'600',marginTop:'2px'}}>⏳ サイコロ待ち</div>
+                      )}
+                    </td>
+                    {/* 現在資金 */}
+                    <td style={{padding:'10px 12px',textAlign:'right'}}>
+                      <span style={{fontWeight:'800',fontSize:'14px',fontFamily:'DM Mono,monospace',color:st.funds>INIT_FUNDS?'#1d4ed8':st.funds<INIT_FUNDS?'#dc2626':'#475569'}}>
+                        {(st.funds||INIT_FUNDS).toLocaleString()}P
+                      </span>
+                    </td>
+                    {/* 直近出目 */}
+                    <td style={{padding:'10px 12px',textAlign:'center'}}>
+                      {latestDice?(
+                        <span style={{background:'#0f172a',color:'white',borderRadius:'7px',padding:'3px 10px',fontFamily:'DM Mono,monospace',fontWeight:'700',fontSize:'14px'}}>🎲{latestDice}</span>
+                      ):<span style={{color:'#cbd5e1',fontSize:'12px'}}>—</span>}
+                    </td>
+                    {/* 直近イベント */}
+                    <td style={{padding:'10px 12px'}}>
+                      {latestEvent?(
+                        <span style={{fontSize:'11px',fontWeight:'600',color:latestEvent.pos?'#92400e':'#dc2626',background:latestEvent.pos?'#fef9c3':'#fef2f2',padding:'2px 8px',borderRadius:'5px',display:'inline-block',maxWidth:'160px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                          {latestEvent.pos?'✨':'⚠️'} {latestEvent.title}
+                        </span>
+                      ):<span style={{color:'#e2e8f0',fontSize:'12px'}}>—</span>}
+                    </td>
+                    {/* 操作ボタン */}
+                    <td style={{padding:'10px 16px',textAlign:'center'}}>
+                      <button onClick={e=>{e.stopPropagation();setActiveId(s.id);}} style={{
+                        background:waitingDice?'#0891b2':'#0f172a',
+                        color:'white',border:'none',borderRadius:'8px',padding:'6px 14px',
+                        fontSize:'12px',fontWeight:'700',cursor:'pointer',
+                        boxShadow:waitingDice?'0 0 0 3px rgba(8,145,178,0.3)':'none',
+                        transition:'all 0.2s'
+                      }}>
+                        {waitingDice?'🎲 振る':'🎮 操作'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* ─── 操作モーダル ─── */}
+      {activeId&&activeSt&&(
+        <div className="modal-overlay" onClick={()=>setActiveId(null)}>
+          <div className="modal-in" onClick={e=>e.stopPropagation()} style={{
+            background:'#f8fafc',width:'100%',maxWidth:'440px',borderRadius:'16px',
+            overflow:'hidden',boxShadow:'0 24px 60px rgba(0,0,0,0.3)',
+            display:'flex',flexDirection:'column',maxHeight:'90vh'
+          }}>
+            <TeacherGameControl
+              studentName={activeStudent?.name}
+              st={activeSt}
+              onRoll={(dv,r)=>handleRoll(activeId,dv,r)}
+              onEventDecide={d=>handleEventDecide(activeId,d)}
+              onNextRound={()=>handleNextRound(activeId)}
+              onNextHalf={()=>handleNextHalf(activeId)}
+              onClose={()=>setActiveId(null)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── 管理者系 ─────────────────────────────────────────────
+function AdminAccounts({accounts,onUpdate}){
+  const [filter,setFilter]=useState('all');
+  const filtered=filter==='all'?accounts:accounts.filter(a=>a.role===filter);
+  return(
+    <div style={{padding:'24px'}} className="fade-in">
+      <h2 style={{fontSize:'20px',fontWeight:'700',marginBottom:'16px'}}>👤 アカウント管理</h2>
+      <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
+        {[['all','すべて'],['admin','管理者'],['teacher','先生'],['student','生徒']].map(([v,l])=>(
+          <button key={v} onClick={()=>setFilter(v)} style={{padding:'6px 14px',borderRadius:'999px',border:`1px solid ${filter===v?'#7c3aed':'#e2e8f0'}`,background:filter===v?'#7c3aed':'white',color:filter===v?'white':'#64748b',fontWeight:'700',fontSize:'12px',cursor:'pointer'}}>{l}</button>
+        ))}
+      </div>
+      <div style={{background:'white',borderRadius:'14px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+        <table style={{width:'100%',textAlign:'left',borderCollapse:'collapse'}}>
+          <thead><tr style={{background:'#f8fafc',fontSize:'11px',color:'#64748b'}}><th style={{padding:'10px 14px'}}>名前</th><th style={{padding:'10px 14px'}}>ログインID</th><th style={{padding:'10px 14px'}}>役割</th><th style={{padding:'10px 14px'}}>学校</th><th style={{padding:'10px 14px'}}>クラス</th><th style={{padding:'10px 14px'}}></th></tr></thead>
+          <tbody style={{fontSize:'12px'}}>
+            {filtered.map(a=>(<tr key={a.id} style={{borderTop:'1px solid #f1f5f9'}} className="hover-row"><td style={{padding:'11px 14px',fontWeight:'700',color:'#1e293b'}}>{a.name}</td><td style={{padding:'11px 14px',fontFamily:'monospace',color:'#475569'}}>{a.loginId}</td><td style={{padding:'11px 14px'}}><RoleBadge role={a.role}/></td><td style={{padding:'11px 14px',color:'#64748b'}}>{a.school||'—'}</td><td style={{padding:'11px 14px',color:'#64748b'}}>{a.class||'—'}</td><td style={{padding:'11px 14px'}}>{a.id!=='a1'&&<button onClick={()=>onUpdate(accounts.filter(x=>x.id!==a.id))} style={{background:'#fef2f2',color:'#dc2626',border:'1px solid #fecaca',borderRadius:'6px',padding:'4px 10px',fontSize:'10px',fontWeight:'700',cursor:'pointer'}}>削除</button>}</td></tr>))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+function AdminCreate({accounts,onUpdate}){
+  const [tab,setTab]=useState('csv');
+  const [role,setRole]=useState('student');const [name,setName]=useState('');const [loginId,setLoginId]=useState('');const [pass,setPass]=useState('');const [school,setSchool]=useState('○○高等学校');const [cls,setCls]=useState('');const [tid,setTid]=useState('');const [singleDone,setSingleDone]=useState(false);
+  const [showTemplate,setShowTemplate]=useState(false);const [copied,setCopied]=useState(false);const [preview,setPreview]=useState(null);const [csvDone,setCsvDone]=useState(false);const [dragOver,setDragOver]=useState(false);
+  const teachers=accounts.filter(a=>a.role==='teacher');
+  const tmpl=['role,name,loginId,password,school,class,teacherLoginId','student,山田 太郎,student_yamada,pass123,○○高等学校,2年B組,teacher01','student,佐藤 花子,student_sato,pass123,○○高等学校,2年B組,teacher01','teacher,田中 先生,teacher_tanaka,pass123,○○高等学校,2年B組,'].join('\n');
+  const copyTmpl=()=>{navigator.clipboard.writeText(tmpl).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}).catch(()=>{const el=document.getElementById('csv-tmpl');if(el){el.select();document.execCommand('copy');setCopied(true);setTimeout(()=>setCopied(false),2000);}});};
+  const parseCSV=text=>{const lines=text.trim().split(/\r?\n/);if(lines.length<2)return[];const hdr=lines[0].split(',').map(h=>h.trim().replace(/^\uFEFF/,''));return lines.slice(1).map((line,i)=>{const vals=line.split(',').map(v=>v.trim());const row={};hdr.forEach((h,j)=>{row[h]=vals[j]||'';});const e=[];if(!row.name)e.push('氏名が空');if(!row.loginId)e.push('IDが空');if(!row.password)e.push('パスワードが空');if(!['student','teacher'].includes(row.role))e.push('role不正');if(accounts.some(a=>a.loginId===row.loginId))e.push('ID重複');return{_row:i+2,name:row.name,loginId:row.loginId,pass:row.password,role:row.role||'student',school:row.school||'',class:row.class||'',teacherLoginId:row.teacherLoginId||'',_err:e.length?e.join('、'):null};});};
+  const handleFile=file=>{if(!file)return;if(!file.name.endsWith('.csv')){alert('CSVファイルを選択してください');return;}const reader=new FileReader();reader.onload=e=>{setPreview(parseCSV(e.target.result));setCsvDone(false);};reader.readAsText(file,'UTF-8');};
+  const bulkCreate=()=>{const valid=preview.filter(r=>!r._err);if(!valid.length){alert('作成できる行がありません');return;}const now=Date.now();const newAccs=valid.map((r,i)=>{const t=accounts.find(a=>a.loginId===r.teacherLoginId&&a.role==='teacher');return{id:'u'+(now+i),loginId:r.loginId,pass:r.pass,role:r.role,name:r.name,school:r.school,...(r.class?{class:r.class}:{}),...(r.role==='student'&&t?{teacherId:t.id}:{})};});onUpdate([...accounts,...newAccs]);setCsvDone(true);setTimeout(()=>{setPreview(null);setCsvDone(false);},3000);};
+  const createSingle=()=>{if(!name||!loginId||!pass){alert('必須項目を入力してください');return;}if(accounts.some(a=>a.loginId===loginId)){alert('そのIDは既に使われています');return;}const na={id:'u'+Date.now(),loginId,pass,role,name,school,...(cls?{class:cls}:{}),...(role==='student'&&tid?{teacherId:tid}:{})};onUpdate([...accounts,na]);setSingleDone(true);setTimeout(()=>{setSingleDone(false);setName('');setLoginId('');setPass('');setCls('');setTid('');},2500);};
+  const vc=preview?preview.filter(r=>!r._err).length:0,ec=preview?preview.filter(r=>r._err).length:0;
+  return(
+    <div style={{padding:'24px',maxWidth:'680px'}} className="fade-in">
+      <h2 style={{fontSize:'20px',fontWeight:'700',marginBottom:'4px'}}>➕ アカウント作成</h2>
+      <p style={{fontSize:'12px',color:'#94a3b8',marginBottom:'20px'}}>CSVで一括作成、または1件ずつ手動で作成できます</p>
+      <div style={{display:'flex',marginBottom:'20px',background:'#f1f5f9',borderRadius:'12px',padding:'4px'}}>
+        {[['csv','📂 CSV一括作成（推奨）'],['single','✏️ 1件手動作成']].map(([v,l])=>(<button key={v} onClick={()=>setTab(v)} style={{flex:1,padding:'9px',borderRadius:'9px',border:'none',fontWeight:'700',fontSize:'13px',cursor:'pointer',background:tab===v?'white':'transparent',color:tab===v?'#1e293b':'#64748b',boxShadow:tab===v?'0 1px 4px rgba(0,0,0,0.08)':'none'}}>{l}</button>))}
+      </div>
+      {tab==='csv'&&(
+        <div>
+          <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:'14px',padding:'16px',marginBottom:'16px'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:showTemplate?'12px':'0'}}>
+              <div><div style={{fontWeight:'700',fontSize:'14px',color:'#166534',marginBottom:'2px'}}>Step 1 | CSVテンプレートを確認</div><div style={{fontSize:'12px',color:'#16a34a'}}>コピーしてExcel/スプレッドシートで編集できます</div></div>
+              <div style={{display:'flex',gap:'8px'}}>
+                <button onClick={()=>setShowTemplate(!showTemplate)} style={{background:'white',color:'#16a34a',border:'1px solid #bbf7d0',borderRadius:'10px',padding:'8px 14px',fontWeight:'700',fontSize:'12px',cursor:'pointer',whiteSpace:'nowrap'}}>{showTemplate?'▲ 閉じる':'▼ 表示'}</button>
+                <button onClick={copyTmpl} style={{background:'#16a34a',color:'white',border:'none',borderRadius:'10px',padding:'8px 14px',fontWeight:'700',fontSize:'12px',cursor:'pointer',whiteSpace:'nowrap'}}>{copied?'✅ コピー済':'📋 コピー'}</button>
+              </div>
+            </div>
+            {showTemplate&&<textarea id="csv-tmpl" readOnly value={tmpl} style={{width:'100%',padding:'12px',background:'#1e293b',color:'#86efac',border:'none',borderRadius:'10px',fontFamily:'monospace',fontSize:'12px',lineHeight:1.7,resize:'none',height:'100px',boxSizing:'border-box',outline:'none',marginTop:'8px'}}/>}
+          </div>
+          <div style={{marginBottom:'16px'}}>
+            <div style={{fontWeight:'700',fontSize:'14px',color:'#1e293b',marginBottom:'8px'}}>Step 2 | CSVをアップロード</div>
+            <div onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>{e.preventDefault();setDragOver(false);handleFile(e.dataTransfer.files[0]);}} onClick={()=>document.getElementById('csv-file').click()} style={{border:`2px dashed ${dragOver?'#7c3aed':'#cbd5e1'}`,borderRadius:'14px',padding:'28px',textAlign:'center',cursor:'pointer',background:dragOver?'#f5f3ff':'#f8fafc'}}>
+              <div style={{fontSize:'28px',marginBottom:'6px'}}>📄</div>
+              <div style={{fontWeight:'700',fontSize:'13px',color:'#475569',marginBottom:'4px'}}>CSVファイルをドロップ</div>
+              <div style={{fontSize:'12px',color:'#94a3b8'}}>または <span style={{color:'#7c3aed',textDecoration:'underline'}}>クリックして選択</span></div>
+              <input id="csv-file" type="file" accept=".csv" style={{display:'none'}} onChange={e=>handleFile(e.target.files[0])}/>
+            </div>
+          </div>
+          {preview&&(
+            <div>
+              <div style={{fontWeight:'700',fontSize:'14px',color:'#1e293b',marginBottom:'8px',display:'flex',alignItems:'center',gap:'10px'}}>Step 3 | 内容確認して作成<span style={{fontWeight:'700',fontSize:'12px',color:'#16a34a',background:'#f0fdf4',padding:'3px 10px',borderRadius:'999px'}}>✅ {vc}件</span>{ec>0&&<span style={{fontWeight:'700',fontSize:'12px',color:'#dc2626',background:'#fef2f2',padding:'3px 10px',borderRadius:'999px'}}>⚠️ {ec}件</span>}</div>
+              <div style={{background:'white',borderRadius:'14px',border:'1px solid #e2e8f0',overflow:'hidden',marginBottom:'14px',maxHeight:'280px',overflowY:'auto'}}>
+                <table style={{width:'100%',textAlign:'left',borderCollapse:'collapse',fontSize:'12px'}}>
+                  <thead><tr style={{background:'#f8fafc',fontSize:'11px',color:'#64748b'}}><th style={{padding:'8px 12px'}}>行</th><th style={{padding:'8px 12px'}}>氏名</th><th style={{padding:'8px 12px'}}>ID</th><th style={{padding:'8px 12px'}}>役割</th><th style={{padding:'8px 12px'}}>状態</th></tr></thead>
+                  <tbody>{preview.map((r,i)=><tr key={i} style={{borderTop:'1px solid #f1f5f9',background:r._err?'#fff5f5':'white'}}><td style={{padding:'8px 12px',color:'#94a3b8'}}>{r._row}</td><td style={{padding:'8px 12px',fontWeight:'600'}}>{r.name||'—'}</td><td style={{padding:'8px 12px',fontFamily:'monospace',color:'#475569'}}>{r.loginId}</td><td style={{padding:'8px 12px'}}><RoleBadge role={r.role}/></td><td style={{padding:'8px 12px'}}>{r._err?<span style={{color:'#dc2626',fontWeight:'700',fontSize:'11px'}}>⚠️ {r._err}</span>:<span style={{color:'#16a34a',fontWeight:'700',fontSize:'11px'}}>✅ OK</span>}</td></tr>)}</tbody>
+                </table>
+              </div>
+              <Btn onClick={bulkCreate} color={csvDone?'#16a34a':'#7c3aed'} full style={{padding:'14px',fontSize:'15px'}}>{csvDone?`✅ ${vc}件を作成しました！`:`🚀 ${vc}件のアカウントを一括作成する`}</Btn>
+            </div>
+          )}
+        </div>
+      )}
+      {tab==='single'&&(
+        <div style={{background:'white',padding:'24px',borderRadius:'20px',border:'1px solid #e2e8f0'}}>
+          <div style={{marginBottom:'16px'}}><label style={{fontSize:'12px',fontWeight:'700',color:'#64748b',display:'block',marginBottom:'8px'}}>役割 <span style={{color:'red'}}>*</span></label><div style={{display:'flex',gap:'8px'}}>{[['teacher','先生','#0891b2'],['student','生徒','#16a34a']].map(([v,l,c])=><button key={v} onClick={()=>setRole(v)} style={{flex:1,padding:'10px',borderRadius:'10px',border:`2px solid ${role===v?c:'#e2e8f0'}`,background:role===v?c:'white',color:role===v?'white':'#64748b',fontWeight:'700',fontSize:'13px',cursor:'pointer'}}>{l}</button>)}</div></div>
+          <FInput label="氏名" value={name} onChange={setName} placeholder="山田 太郎" req/>
+          <FInput label="ログインID" value={loginId} onChange={setLoginId} placeholder="student_yamada" req/>
+          <FInput label="パスワード" value={pass} onChange={setPass} type="password" placeholder="••••••••" req/>
+          <FInput label="学校名" value={school} onChange={setSchool} placeholder="○○高等学校"/>
+          <FInput label="クラス" value={cls} onChange={setCls} placeholder="2年B組"/>
+          {role==='student'&&<div style={{marginBottom:'14px'}}><label style={{fontSize:'12px',fontWeight:'700',color:'#64748b',display:'block',marginBottom:'4px'}}>担当先生</label><select value={tid} onChange={e=>setTid(e.target.value)} style={{width:'100%',padding:'10px 12px',background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'10px',fontWeight:'600',fontSize:'13px',outline:'none'}}><option value="">選択してください</option>{teachers.map(t=><option key={t.id} value={t.id}>{t.name}（{t.class||'クラス未設定'}）</option>)}</select></div>}
+          <Btn onClick={createSingle} color={singleDone?'#16a34a':'#7c3aed'} full style={{padding:'13px',fontSize:'14px',marginTop:'4px'}}>{singleDone?'✅ 作成しました！':'アカウントを作成する'}</Btn>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── AI チャット ──────────────────────────────────────────
+function AIChatWidget(){
+  const [open,setOpen]=useState(false);
+  const [msgs,setMsgs]=useState([{t:'bot',txt:'こんにちは！学習で困ったことはありますか？'}]);
+  const QA=[{q:"ゲームのルールは？",a:"8ラウンドで最終資金を競います。カードを選んでサイコロの出目で利益が決まります。"},{q:"売上を上げるコツは？",a:"守り(D)カードで基盤を固めつつ、コンボを狙って投資するのがおすすめです！"},{q:"アクシデントが怖い",a:"D(守り)カードでトラブルを回避できることがあります。"}];
+  const ask=qa=>{setMsgs(p=>[...p,{t:'user',txt:qa.q}]);setTimeout(()=>setMsgs(p=>[...p,{t:'bot',txt:qa.a}]),400);};
+  return(
+    <div style={{position:'fixed',bottom:'16px',right:'16px',zIndex:50,display:'flex',flexDirection:'column',alignItems:'flex-end'}}>
+      {open&&<div style={{background:'white',width:'260px',borderRadius:'16px',boxShadow:'0 8px 30px rgba(0,0,0,0.15)',border:'1px solid #e2e8f0',display:'flex',flexDirection:'column',overflow:'hidden',marginBottom:'8px',height:'260px'}}>
+        <div style={{background:'#0f172a',color:'white',padding:'10px 12px',display:'flex',justifyContent:'space-between',alignItems:'center'}}><span style={{fontWeight:'700',fontSize:'12px'}}>🤖 AI学習アシスタント</span><button onClick={()=>setOpen(false)} style={{background:'none',border:'none',color:'white',cursor:'pointer'}}>✕</button></div>
+        <div style={{flex:1,padding:'10px',overflowY:'auto',background:'#f8fafc',display:'flex',flexDirection:'column',gap:'6px'}}>{msgs.map((m,i)=><div key={i} style={{display:'flex',justifyContent:m.t==='user'?'flex-end':'flex-start'}}><div style={{padding:'7px 10px',borderRadius:'10px',fontSize:'11px',maxWidth:'85%',background:m.t==='user'?'#2563eb':'white',color:m.t==='user'?'white':'#334155',border:m.t==='bot'?'1px solid #e2e8f0':'none'}}>{m.txt}</div></div>)}</div>
+        <div style={{padding:'8px',background:'white',borderTop:'1px solid #f1f5f9',display:'flex',flexDirection:'column',gap:'4px'}}>{QA.map((qa,i)=><button key={i} onClick={()=>ask(qa)} style={{fontSize:'10px',textAlign:'left',padding:'6px 8px',background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer',color:'#475569'}}>💡 {qa.q}</button>)}</div>
+      </div>}
+      <button onClick={()=>setOpen(!open)} style={{width:'48px',height:'48px',borderRadius:'50%',background:'#0f172a',color:'white',border:'none',cursor:'pointer',fontSize:'18px',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 12px rgba(0,0,0,0.25)'}}>{open?'✕':'💬'}</button>
+    </div>
+  );
+}
+
+// ─── サイドバー・ヘッダー ─────────────────────────────────
+function AppSidebar({items,view,setView,onLogout,accent='#2563eb'}){
+  return(
+    <div style={{width:'200px',background:'#0f172a',color:'white',height:'100%',display:'flex',flexDirection:'column',flexShrink:0}}>
+      <div style={{padding:'18px 16px',borderBottom:'1px solid #1e293b',display:'flex',alignItems:'center',gap:'8px'}}><div style={{width:'30px',height:'30px',background:accent,borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:'900',fontSize:'14px'}}>S</div><span style={{fontWeight:'700',fontSize:'17px'}}>Schola</span></div>
+      <nav style={{flex:1,padding:'10px',display:'flex',flexDirection:'column',gap:'2px'}}>
+        {items.map(it=><button key={it.id} onClick={()=>setView(it.id)} style={{width:'100%',display:'flex',alignItems:'center',gap:'8px',padding:'9px 10px',borderRadius:'10px',border:'none',cursor:'pointer',textAlign:'left',fontSize:'13px',fontWeight:'500',background:view===it.id?accent:'transparent',color:view===it.id?'white':'#94a3b8'}}><span>{it.icon}</span><span>{it.label}</span></button>)}
+      </nav>
+      <div style={{padding:'10px',borderTop:'1px solid #1e293b'}}>
+        <button onClick={onLogout} style={{width:'100%',display:'flex',alignItems:'center',gap:'8px',padding:'9px 10px',borderRadius:'10px',border:'none',cursor:'pointer',background:'transparent',color:'#f87171',fontSize:'13px',textAlign:'left'}}>🚪 <span>ログアウト</span></button>
+      </div>
+    </div>
+  );
+}
+function AppHeader({user,view,viewLabels,onLogout}){
+  return(
+    <header style={{background:'rgba(255,255,255,0.9)',position:'sticky',top:0,zIndex:10,padding:'11px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid #e2e8f0'}}>
+      <div style={{display:'flex',alignItems:'center',gap:'8px'}}><RoleBadge role={user.role}/><h2 style={{fontWeight:'700',color:'#475569',fontSize:'14px',margin:0}}>{viewLabels[view]||view}</h2></div>
+      <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+        <span style={{fontSize:'13px',fontWeight:'700',color:'#475569'}}>{user.name}</span>
+        <div style={{width:'30px',height:'30px',background:'#f1f5f9',color:'#475569',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:'700',fontSize:'12px'}}>{user.name[0]}</div>
+        <button onClick={onLogout} style={{display:'flex',alignItems:'center',gap:'5px',padding:'7px 12px',borderRadius:'8px',border:'1px solid #fecaca',background:'#fef2f2',color:'#dc2626',fontWeight:'700',fontSize:'12px',cursor:'pointer',whiteSpace:'nowrap'}}>🚪 ログアウト</button>
+      </div>
+    </header>
+  );
+}
+
+// ─── メインApp ────────────────────────────────────────────
+function App(){
+  const [accounts,setAccounts]=useState(INIT_ACCOUNTS);
+  const [gameStates,setGameStates]=useState({});
+  const [gameLog,setGameLog]=useState({});
+  const [histDetail,setHistDetail]=useState(null);
+  const [user,setUser]=useState(null);
+  const [loginId,setLoginId]=useState('');
+  const [pass,setPass]=useState('');
+  const [err,setErr]=useState('');
+  const [view,setView]=useState('dashboard');
+
+  const login=()=>{const f=accounts.find(a=>a.loginId===loginId&&a.pass===pass);if(!f){setErr('IDまたはパスワードが違います');return;}setUser(f);setErr('');setView('dashboard');};
+  const logout=()=>{setUser(null);setLoginId('');setPass('');};
+
+  const getMyState=()=>gameStates[user?.id]||INIT_GS();
+  const setMyState=updater=>setGameStates(prev=>{const cur=prev[user.id]||INIT_GS();const next=typeof updater==='function'?updater(cur):{...cur,...updater};return{...prev,[user.id]:next};});
+
+  // ログイン画面
+  if(!user)return(
+    <div style={{minHeight:'100vh',background:'#f8fafc',backgroundImage:'radial-gradient(#e2e8f0 1.5px,transparent 1.5px)',backgroundSize:'20px 20px',display:'flex',alignItems:'center',justifyContent:'center',padding:'16px'}}>
+      <style>{css}</style>
+      <div style={{background:'white',width:'100%',maxWidth:'360px',padding:'32px',borderRadius:'24px',boxShadow:'0 20px 60px rgba(0,0,0,0.1)',border:'1px solid #e2e8f0'}}>
+        <div style={{textAlign:'center',marginBottom:'24px'}}>
+          <div style={{width:'60px',height:'60px',background:'#0f172a',borderRadius:'14px',margin:'0 auto 12px',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:'26px',fontWeight:'900'}}>S</div>
+          <h1 style={{fontSize:'22px',fontWeight:'900',color:'#1e293b',margin:0}}>Schola ログイン</h1>
+          <p style={{color:'#94a3b8',fontSize:'13px',marginTop:'4px'}}>探究学習プラットフォーム</p>
+        </div>
+        <FInput label="ログインID" value={loginId} onChange={setLoginId} placeholder="例: student01" req/>
+        <FInput label="パスワード" value={pass} onChange={setPass} type="password" placeholder="••••••••" req/>
+        {err&&<div style={{background:'#fef2f2',border:'1px solid #fecaca',color:'#dc2626',padding:'10px 12px',borderRadius:'8px',fontSize:'12px',fontWeight:'700',marginBottom:'12px'}}>⚠️ {err}</div>}
+        <Btn onClick={login} color='#0f172a' full style={{padding:'14px',fontSize:'15px',marginTop:'4px'}}>ログイン →</Btn>
+        <div style={{marginTop:'16px',padding:'12px',background:'#f8fafc',borderRadius:'10px',fontSize:'11px',color:'#64748b'}}>
+          <div style={{fontWeight:'700',marginBottom:'6px'}}>💡 デモアカウント（クリックで自動入力）</div>
+          {[['admin','管理者','admin','admin123'],['teacher','先生','teacher01','pass123'],['student','生徒','student01','pass123']].map(([role,label,id,pw])=>(
+            <div key={id} onClick={()=>{setLoginId(id);setPass(pw);}} style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'4px',cursor:'pointer',padding:'4px',borderRadius:'6px'}} className="hover-row">
+              <RoleBadge role={role}/><span style={{fontFamily:'monospace'}}>{id}</span><span style={{color:'#94a3b8'}}>/ {pw}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // 管理者
+  if(user.role==='admin'){
+    const items=[{id:'dashboard',icon:'🏠',label:'ダッシュボード'},{id:'accounts',icon:'👤',label:'アカウント管理'},{id:'create',icon:'➕',label:'アカウント作成'}];
+    return(
+      <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
+        <style>{css}</style>
+        <AppSidebar items={items} view={view} setView={setView} onLogout={logout} accent='#7c3aed'/>
+        <main style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column'}}>
+          <AppHeader user={user} view={view} onLogout={logout} viewLabels={{dashboard:'ダッシュボード',accounts:'アカウント管理',create:'アカウント作成'}}/>
+          {view==='dashboard'&&(
+            <div style={{padding:'24px'}} className="fade-in">
+              <h2 style={{fontSize:'20px',fontWeight:'700',marginBottom:'6px'}}>管理者ダッシュボード</h2>
+              <p style={{fontSize:'12px',color:'#94a3b8',marginBottom:'20px'}}>{new Date().toLocaleDateString('ja-JP')}</p>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'14px',marginBottom:'20px'}}>
+                {[{icon:'👨‍🏫',l:'先生',n:accounts.filter(a=>a.role==='teacher').length,c:'#0891b2',bg:'#ecfeff'},{icon:'🎓',l:'生徒',n:accounts.filter(a=>a.role==='student').length,c:'#16a34a',bg:'#f0fdf4'},{icon:'🏆',l:'プレイ完了',n:Object.values(gameLog).flat().length,c:'#7c3aed',bg:'#f5f3ff'}].map(c=>(
+                  <div key={c.l} style={{background:c.bg,borderRadius:'14px',padding:'16px',textAlign:'center'}}><div style={{fontSize:'24px',marginBottom:'4px'}}>{c.icon}</div><div style={{fontSize:'22px',fontWeight:'900',color:c.c}}>{c.n}</div><div style={{fontSize:'11px',fontWeight:'700',color:c.c}}>{c.l}</div></div>
+                ))}
+              </div>
+              <div style={{display:'flex',gap:'12px'}}>
+                <button onClick={()=>setView('create')} style={{flex:1,background:'#7c3aed',color:'white',border:'none',borderRadius:'12px',padding:'14px',fontWeight:'700',fontSize:'14px',cursor:'pointer'}}>➕ アカウント作成</button>
+                <button onClick={()=>setView('accounts')} style={{flex:1,background:'white',color:'#475569',border:'1px solid #e2e8f0',borderRadius:'12px',padding:'14px',fontWeight:'700',fontSize:'14px',cursor:'pointer'}}>👤 アカウント一覧</button>
+              </div>
+            </div>
+          )}
+          {view==='accounts'&&<AdminAccounts accounts={accounts} onUpdate={setAccounts}/>}
+          {view==='create'&&<AdminCreate accounts={accounts} onUpdate={setAccounts}/>}
+        </main>
+      </div>
+    );
+  }
+
+  // 先生
+  if(user.role==='teacher'){
+    const items=[{id:'dashboard',icon:'🏠',label:'ダッシュボード'},{id:'progress',icon:'🎮',label:'ゲーム操作'},{id:'students',icon:'👥',label:'生徒一覧'}];
+    return(
+      <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
+        <style>{css}</style>
+        <AppSidebar items={items} view={view} setView={setView} onLogout={logout} accent='#0891b2'/>
+        <main style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
+          <AppHeader user={user} view={view} onLogout={logout} viewLabels={{dashboard:'ダッシュボード',progress:'ゲーム操作',students:'生徒一覧'}}/>
+          <div style={{flex:1,overflow:'hidden'}}>
+            {view==='dashboard'&&(
+              <div style={{padding:'24px',overflowY:'auto',height:'100%'}} className="fade-in">
+                <h2 style={{fontSize:'20px',fontWeight:'700',marginBottom:'6px'}}>ようこそ、{user.name}</h2>
+                <p style={{fontSize:'12px',color:'#94a3b8',marginBottom:'20px'}}>{user.class} · {new Date().toLocaleDateString('ja-JP')}</p>
+                <div style={{background:'#ecfeff',border:'1px solid #bae6fd',borderRadius:'14px',padding:'16px',marginBottom:'16px',fontSize:'13px',color:'#0c4a6e'}}>
+                  <b>📋 使い方</b><br/>「ゲーム操作」→ 生徒行をクリック → モーダルでサイコロを振る → 生徒画面にリアルタイム反映
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'}}>
+                  {[{id:'progress',icon:'🎮',title:'ゲーム操作',sub:'生徒一覧＋モーダル操作',c:'#0891b2',bg:'#ecfeff'},{id:'students',icon:'👥',title:'生徒一覧',sub:'担当生徒のリスト',c:'#16a34a',bg:'#f0fdf4'}].map(c=>(
+                    <div key={c.id} onClick={()=>setView(c.id)} style={{background:c.bg,padding:'20px',borderRadius:'14px',cursor:'pointer'}}>
+                      <div style={{fontSize:'28px',marginBottom:'8px'}}>{c.icon}</div>
+                      <h3 style={{fontWeight:'700',fontSize:'15px',color:c.c,marginBottom:'2px'}}>{c.title}</h3>
+                      <p style={{fontSize:'12px',color:c.c,opacity:0.8,margin:0}}>{c.sub}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {view==='progress'&&(
+              <TeacherProgress user={user} accounts={accounts} gameStates={gameStates} setGameStates={setGameStates} gameLog={gameLog} setGameLog={setGameLog}/>
+            )}
+            {view==='students'&&(
+              <div style={{padding:'24px',overflowY:'auto',height:'100%'}} className="fade-in">
+                <h2 style={{fontSize:'20px',fontWeight:'700',marginBottom:'20px'}}>👥 生徒一覧</h2>
+                <div style={{background:'white',borderRadius:'14px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+                  <table style={{width:'100%',textAlign:'left',borderCollapse:'collapse'}}>
+                    <thead><tr style={{background:'#f8fafc',fontSize:'11px',color:'#64748b'}}><th style={{padding:'10px 14px'}}>生徒名</th><th style={{padding:'10px 14px'}}>ログインID</th><th style={{padding:'10px 14px'}}>クラス</th></tr></thead>
+                    <tbody style={{fontSize:'12px'}}>{accounts.filter(a=>a.role==='student'&&a.teacherId===user.id).map(s=>(<tr key={s.id} style={{borderTop:'1px solid #f1f5f9'}} className="hover-row"><td style={{padding:'11px 14px',fontWeight:'700',color:'#1e293b'}}>{s.name}</td><td style={{padding:'11px 14px',fontFamily:'monospace',color:'#64748b'}}>{s.loginId}</td><td style={{padding:'11px 14px',color:'#64748b'}}>{s.class||'—'}</td></tr>))}</tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // 生徒
+  const st=getMyState();
+  const myLog=gameLog[user.id]||[];
+  const bestPlay=myLog.length?myLog.reduce((b,g)=>g.funds>b.funds?g:b,myLog[0]):null;
+
+  if(['rule','playing','interim','result','setup','second_setup'].includes(st.gs))return(
+    <div style={{height:'100vh',display:'flex',flexDirection:'column',background:'#f8fafc',overflow:'hidden'}}>
+      <style>{css}</style>
+      <div style={{background:'#0f172a',color:'white',padding:'8px 14px',display:'flex',alignItems:'center',gap:'10px',flexShrink:0}}>
+        <button onClick={()=>setMyState(INIT_GS())} style={{background:'#1e293b',color:'white',border:'none',borderRadius:'7px',padding:'5px 10px',cursor:'pointer',fontSize:'12px'}}>← ホームへ</button>
+        <span style={{fontSize:'13px',fontWeight:'700'}}>🏪 コンビニ経営シミュレーション</span>
+        <span style={{fontSize:'11px',color:'#64748b',marginLeft:'auto'}}>先生がサイコロを操作します</span>
+      </div>
+      <div style={{flex:1,overflowY:'auto',maxWidth:'480px',margin:'0 auto',width:'100%'}}>
+        <StudentGameView user={user} st={st}
+          onSetup={(nextGs,cards,funds,mode)=>setMyState(cur=>({...cur,gs:nextGs,cards,funds,mode,shared:{phase:'waiting',diceVal:1,rolling:false,roundResult:null,event:null,eventDecided:null,bestDice:[]}}))}
+          onReset={()=>setMyState(INIT_GS())}
+          onExit={()=>setMyState(INIT_GS())}
+        />
+      </div>
+      <AIChatWidget/>
+    </div>
+  );
+
+  // 生徒ダッシュボード
+  return(
+    <div style={{height:'100vh',overflow:'hidden',background:'#f8fafc',display:'flex',flexDirection:'column'}}>
+      <style>{css}</style>
+      <header style={{background:'#0f172a',color:'white',padding:'12px 20px',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:'10px'}}><div style={{width:'28px',height:'28px',background:'#2563eb',borderRadius:'7px',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:'900',fontSize:'13px'}}>S</div><span style={{fontWeight:'700',fontSize:'15px'}}>Schola</span><Badge label='生徒' color='#16a34a' bg='#f0fdf4'/></div>
+        <div style={{display:'flex',alignItems:'center',gap:'10px'}}><span style={{fontSize:'13px',color:'#94a3b8'}}>{user.name}</span><button onClick={logout} style={{display:'flex',alignItems:'center',gap:'4px',padding:'6px 11px',borderRadius:'7px',border:'1px solid #ef4444',background:'transparent',color:'#f87171',fontWeight:'700',fontSize:'12px',cursor:'pointer'}}>🚪 ログアウト</button></div>
+      </header>
+      <main style={{flex:1,overflowY:'auto',padding:'20px',maxWidth:'640px',width:'100%',margin:'0 auto'}}>
+        <div style={{background:'linear-gradient(135deg,#1e293b,#0f172a)',borderRadius:'20px',padding:'24px',marginBottom:'20px',color:'white',position:'relative',overflow:'hidden'}}>
+          <div style={{position:'absolute',top:'-20px',right:'-20px',fontSize:'80px',opacity:0.08}}>🏪</div>
+          <div style={{fontSize:'13px',color:'#94a3b8',marginBottom:'4px'}}>{user.school} · {user.class}</div>
+          <h2 style={{fontSize:'20px',fontWeight:'900',margin:'0 0 4px'}}>こんにちは、{user.name}さん</h2>
+          <div style={{fontSize:'13px',color:'#94a3b8',marginBottom:'20px'}}>コンビニ経営シミュレーションに挑戦しよう！</div>
+          <button onClick={()=>setMyState(cur=>({...cur,gs:'rule'}))} style={{background:'#2563eb',color:'white',border:'none',borderRadius:'12px',padding:'13px 28px',fontWeight:'900',fontSize:'15px',cursor:'pointer'}}>🎮 ゲームをプレイする</button>
+        </div>
+        {myLog.length>0&&(
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',marginBottom:'20px'}}>
+            {[{icon:'🎮',label:'プレイ回数',value:`${myLog.length}回`},{icon:'🏆',label:'最高ランク',value:bestPlay?getRank(bestPlay.funds,bestPlay.mode).rank:'—'},{icon:'💰',label:'最高資金',value:bestPlay?`${bestPlay.funds.toLocaleString()}P`:'—'}].map(s=>(
+              <div key={s.label} style={{background:'white',borderRadius:'14px',padding:'14px',textAlign:'center',border:'1px solid #e2e8f0'}}><div style={{fontSize:'22px',marginBottom:'4px'}}>{s.icon}</div><div style={{fontSize:'18px',fontWeight:'900',color:'#1e293b',marginBottom:'2px'}}>{s.value}</div><div style={{fontSize:'10px',color:'#94a3b8',fontWeight:'700'}}>{s.label}</div></div>
+            ))}
+          </div>
+        )}
+        <div style={{background:'white',borderRadius:'16px',border:'1px solid #e2e8f0',overflow:'hidden'}}>
+          <div style={{padding:'14px 18px',borderBottom:'1px solid #e2e8f0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{fontWeight:'700',fontSize:'14px',color:'#1e293b'}}>📜 プレイ履歴</div>
+            {myLog.length>0&&<Badge label={`${myLog.length}件`} color='#2563eb' bg='#eff6ff'/>}
+          </div>
+          {myLog.length===0?(
+            <div style={{padding:'40px 20px',textAlign:'center',color:'#94a3b8'}}><div style={{fontSize:'36px',marginBottom:'8px'}}>🎲</div><div style={{fontSize:'14px',fontWeight:'700',marginBottom:'4px'}}>まだプレイ記録がありません</div><div style={{fontSize:'12px'}}>ゲームをプレイして記録を残しましょう！</div></div>
+          ):(
+            [...myLog].reverse().map((log,i)=>{
+              const rank=getRank(log.funds,log.mode);const realIdx=myLog.length-1-i;const isOpen=histDetail===realIdx;
+              return(
+                <div key={i} style={{borderTop:i>0?'1px solid #f1f5f9':'none'}}>
+                  <div onClick={()=>setHistDetail(isOpen?null:realIdx)} className="hover-row" style={{padding:'14px 18px',cursor:'pointer',display:'flex',alignItems:'center',gap:'12px'}}>
+                    <div style={{width:'44px',height:'44px',borderRadius:'12px',background:rank.bg,border:`2px solid ${rank.border}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><span style={{fontSize:'20px',fontWeight:'900',color:rank.color}}>{rank.rank}</span></div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'2px'}}><span style={{fontWeight:'700',fontSize:'13px',color:'#1e293b'}}>{log.playedAt}</span><Badge label={log.mode==='random'?'ランダム':'スタンダード'} color={log.mode==='random'?'#7c3aed':'#2563eb'} bg={log.mode==='random'?'#f5f3ff':'#eff6ff'}/></div>
+                      <div style={{fontSize:'12px',color:'#64748b'}}>最終資金: <b style={{color:'#1d4ed8'}}>{log.funds.toLocaleString()}P</b> · {rank.title}</div>
+                    </div>
+                    <div style={{color:'#94a3b8',fontSize:'12px',flexShrink:0}}>{isOpen?'▲':'▼'}</div>
+                  </div>
+                  {isOpen&&(
+                    <div style={{padding:'0 18px 14px',background:'#f8fafc'}}>
+                      <div style={{border:'1px solid #e2e8f0',borderRadius:'10px',overflow:'hidden',background:'white'}}>
+                        <table style={{width:'100%',textAlign:'left',borderCollapse:'collapse',fontSize:'11px'}}>
+                          <thead><tr style={{background:'#f1f5f9',color:'#64748b'}}><th style={{padding:'7px 10px'}}>R</th><th style={{padding:'7px 10px'}}>出目</th><th style={{padding:'7px 10px'}}>売上</th><th style={{padding:'7px 10px'}}>イベント</th></tr></thead>
+                          <tbody>{(log.history||[]).map((rec,j)=><tr key={j} style={{borderTop:'1px solid #f8fafc'}}><td style={{padding:'7px 10px',fontWeight:'700',color:'#475569'}}>R{rec.round}</td><td style={{padding:'7px 10px',textAlign:'center'}}>🎲{rec.dice}</td><td style={{padding:'7px 10px',fontWeight:'700',color:rec.total>=0?'#1d4ed8':'#dc2626'}}>{rec.total>=0?'+':''}{(rec.total||0).toLocaleString()}P</td><td style={{padding:'7px 10px'}}>{rec.event?<span style={{color:rec.event.pos?'#d97706':'#dc2626',fontWeight:'700'}}>{rec.event.pos?'✨':'⚠️'} {rec.event.title}</span>:<span style={{color:'#cbd5e1'}}>—</span>}</td></tr>)}</tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </main>
+      <AIChatWidget/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
